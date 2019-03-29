@@ -153,7 +153,7 @@
          }
  
          html = html + '</div>';
-         f.openModal(graphId ,'Select the relation you want to expand', html);
+         f.openModal(graphId ,'Select the fields you want to base search on', html);
  
          return {
            model: null,
@@ -263,6 +263,8 @@
   
    var queryTemplate;
    
+   console.log(onOkModalResult)
+   
    if (onOkModalResult && onOkModalResult.length) {
      var rels = JSON.stringify(onOkModalResult);
      var relList = rels.substring(1, rels.length - 1);
@@ -281,35 +283,82 @@
       filteredEntityLabels.forEach(function(desiredLabel){
         entityConnections.forEach(function(entity){ // check 
           if (desiredLabel.domain.label === entity.domain.label){// we have a match of entity identifiers attached to index
-            finalEntitiesToBeSearched.push(entity);
-            queryElasticSearch(entity, graphModel);
+             var elasticSearchPromise = new Promise(function(resolve, reject) {
+             resolve(queryElasticSearch(entity, graphModel));
+             });
+             finalEntitiesToBeSearched.push(elasticSearchPromise);
           } 
         })
+      })
+      
+      queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
+       } else {
+         queryTemplate = 'g.V($1)';
+       }
+      
+      return Promise.all(finalEntitiesToBeSearched)
+      .then(function(results){
+        console.log("PROMISE!!!")
+        console.log(results);
+        
+        var arrayofIDs = [];
+     
+       // /**************************
+       // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
+       // * *************************/
+       results.forEach(function(result){
+          result.hits.hits.forEach(function(res){
+           var id = res._index + "/" + res._type + "/" + res._id;
+          
+           var nodePromise = new Promise(function(resolve, reject) {
+             resolve(entityResToGraph(id, graphId, queryTemplate));
+          })
+          
+           arrayofIDs.push(nodePromise);
+       })
+       })
+       
+       return Promise.all(arrayofIDs)
+       .then(function(results){
+         console.log("ggerrer")
+         return results;
+       })
+         
+        // return sendToGraph(graphModel, arrayofIDs);
+        
+       // var relationsSet = new Set(onOkModalResult);
+       //   console.log(selectedNode)
+       //     console.log(queryTemplate)
+       
+ 
+         // return f.executeGremlinQuery(graphId, queryTemplate, selection)
+         // .then(function (results) {
+         //   console.log(results);
+         //   return f.addResultsToGraph(graphId, selection, results);
+         // });
+      })
+      .catch(function(error){
+        console.log(error)
       })
       
       /******************* THIS IS THE FINAL LIST OF ENTITIES from which we will search  corresponding inices ***********/
       console.log(finalEntitiesToBeSearched)
       
-      /** NOW WE BUILD OU RELASTICSEARCH QUERY/QUERIES***/
+      /** NOW WE BUILD OUR ELASTICSEARCH QUERY/QUERIES***/
      
      // console.log(JSON.stringify(filteredEntityLabels))
      //console.log(filteredEntityConnections);
      
-     
-     console.log(relList);
-     queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
-   } else {
-     queryTemplate = 'g.V($1)';
-   }
-   var relationsSet = new Set(onOkModalResult);
-    console.log(selectedNode)
-     console.log(queryTemplate)
-      console.log(graphId)
-   return f.executeGremlinQuery(graphId, queryTemplate, selection)
-   .then(function (results) {
-     console.log(results);
-     return f.addResultsToGraph(graphId, selection, results);
-   });
+     //g.V($1).bothE("c1709f60-3f01-4f5e-8aee-9fe79f8c2116","42347125-c744-4ccf-8a60-f778e1aa7ad6").as("e").bothV().as("v").select("e","v").mapValues()
+ }
+ 
+ function entityResToGraph(selection, graphId, queryTemplate){
+         return Promise.resolve(f.executeGremlinQuery(graphId, queryTemplate, selection)
+         .then(function (results) {
+           console.log(results);
+           return f.addResultsToGraph(graphId, selection, results);
+         })
+         )
  }
  
  function queryElasticSearch(entity, graphModel){
@@ -351,27 +400,27 @@
        }
    } //entity.range.field
  
-                       
-  console.log(entity.range.label)
-  console.log("ES_QUERY")
-  console.log(esFuzzyBody)
+ 
      // for each index
      return f.executeEsSearch(entity.range.label, "doc", esFuzzyBody, 3)
      .then(function (searchResults){
        console.log(searchResults)
-       var arrayofIDs = [];
+       
+       // var arrayofIDs = [];
      
-       /**************************
-       * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
-       * *************************/
-       searchResults.hits.hits.forEach(function(result){
-         var id = result._index + "/" + result._type + "/" + result._id;
-         arrayofIDs.push(id);
-       });
+       // /**************************
+       // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
+       // * *************************/
+       // searchResults.hits.hits.forEach(function(result){
+       //   var id = result._index + "/" + result._type + "/" + result._id;
+       //   arrayofIDs.push(id);
+       // });
       
        //  console.log("YES")
          //console.log(arrayofIDs)
-         return sendToGraph(graphModel, arrayofIDs);
+         
+         return Promise.resolve(searchResults);
+        // return sendToGraph(graphModel, arrayofIDs);
        
        
        //remove link to self

@@ -303,6 +303,7 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
     // * *************************/
     results.forEach(function(result){
       result.hits.hits.forEach(function(res){
+        console.log(res)
         var id = res._index + "/" + res._type + "/" + res._id;
        
       //   var nodePromise = new Promise(function(resolve, reject) {
@@ -339,6 +340,7 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
     ])
     .then(function ([res1, res2]) {
       
+      console.log(res1)
       console.log(res2)
       var edges = []
       var response = res1.concat(res2);
@@ -352,6 +354,12 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
       manual.outV = ".le-persons-e9b7ea11-4efc-11e9-85e8-d24ab20adaa2/doc/13923"
       manual.outVLabel = "doc"
       manual.type = "edge"
+      
+      var virtualEntities = res2.filter(function(entity){
+        return entity.id.includes("VIRTUAL_ENTITY")
+      })
+      
+      var addedEdges = createEdges(res1, virtualEntities)
       
       console.log(response)
       response.forEach(function(linkNode){
@@ -375,7 +383,7 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
       })
       
       
-      response = response.concat(manual)
+      response = response.concat(addedEdges)
       console.log(response)
       return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), response);
 
@@ -428,46 +436,34 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
     
 }
 
+function createEdges(nodes, virtualEntities){///////////////////////////**************************//////////////
+  var edges = [];
+  nodes.forEach(function(node){
+    console.log(node)
+    var manual = {};
+      manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
+      manual.properties = {}
+      manual.inV = "VIRTUAL_ENTITY/194849f0-4a39-11e9-bdd1-731060d3052f/Pucket"
+      manual.inVLabel = "194849f0-4a39-11e9-bdd1-731060d3052f"
+      manual.label = "Suspect Last Name"
+      manual.outV = node.id
+      manual.outVLabel = "doc"
+      manual.type = "edge";
+      
+      edges.push(manual)
+  })
+   return edges;
+  
+}
+
 function entityResToGraph(selection, graphId, queryTemplate){
         return f.executeGremlinQuery(graphId, queryTemplate, selection)
-        //.then(function (results) {
-        //  console.log(results);
-          //f.addResultsToGraph(graphId, selection, results)
-          
-       //   return results;
-        
-        //})
-      
 }
 
 function queryElasticSearch(entity, graphModel){
   console.log(entity)
   /******************* AT THE MOMENT THIS LOOP BREAKS THE GRAPH PLOT. HAVE TO LOOK INTO****/
-   
-  // var esFuzzyBody = {
-  //                         "query": {
-  //                           "bool":{
-  //                             "should":[{"fuzzy": {
-  //                                 "SURNAME": {
-  //                                   "value": lookup.SURNAME,
-  //                                   "fuzziness": "AUTO"
-  //                                   , "boost": 1.3
-  //                                 }
-  //                               }
-  //                             },
-  //                             {
-  //                               "fuzzy": {
-  //                                 "GIVENNAME": {
-  //                                   "value": lookup.GIVENNAME,
-  //                                   "fuzziness": "AUTO",
-  //                                   "boost": 1.2
-  //                                 }
-  //                               }
-  //                               }
-  //                             ]
-  //                           }
-  //                         }
-  //                       };
+
   var esFuzzyBody = 
   {
   "query": {
@@ -479,37 +475,21 @@ function queryElasticSearch(entity, graphModel){
         }
       }
   } //entity.range.field
-
+  
+  var dynamicQuery = {};
+  dynamicQuery.query = {};
+  dynamicQuery.query.fuzzy = {};
+  dynamicQuery.query.fuzzy[entity.range.field] = {};
+  dynamicQuery.query.fuzzy[entity.range.field].value = lookup[entity.range.field];
+  
+  console.log(dynamicQuery)
 
     // for each index
-    return f.executeEsSearch(entity.range.label, "doc", esFuzzyBody, 3)
+    return f.executeEsSearch(entity.range.label, "doc", dynamicQuery, 10)
     .then(function (searchResults){
       console.log(searchResults)
-      
-      // var arrayofIDs = [];
-    
-      // /**************************
-      // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
-      // * *************************/
-      // searchResults.hits.hits.forEach(function(result){
-      //   var id = result._index + "/" + result._type + "/" + result._id;
-      //   arrayofIDs.push(id);
-      // });
-     
-      //  console.log("YES")
-        //console.log(arrayofIDs)
-        
+      var resultWithQuery = {};
+      resultWithQuery.
         return Promise.resolve(searchResults);
-      // return sendToGraph(graphModel, arrayofIDs);
-      
-      
-      //remove link to self
-      // arrayofIDs = arrayofIDs.filter(function(entry){
-      //   return entry.id != selectedNode.id;
-      // })
-      
-      
-        
-        
     });
 }

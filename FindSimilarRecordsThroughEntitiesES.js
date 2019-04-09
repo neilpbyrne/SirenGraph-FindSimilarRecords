@@ -31,6 +31,7 @@ var selectedNode = {};
 var entityConnections = [];
 var fields = {};
 var lookup = {};
+var idxLabels = {};
 
 function getCount(graphId, newGraphSelection, relation) {
   var queryTemplate = 'g.V($1).bothE("' + relation.id  + '").count()';
@@ -209,15 +210,41 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
     filteredEntityLabels.forEach(function(desiredLabel){
       entityConnections.forEach(function(entity){ // check 
         if (desiredLabel.domain.label === entity.domain.label){// we have a match of entity identifiers attached to index
-            if(!finalEntitiesToBeSearched[entity.range.label]) finalEntitiesToBeSearched[entity.range.label] = [];
-            finalEntitiesToBeSearched[entity.range.label].push(entity);
+            if(!finalEntitiesToBeSearched[entity.range.indexPattern]) finalEntitiesToBeSearched[entity.range.indexPattern] = [];
+            finalEntitiesToBeSearched[entity.range.indexPattern].push(entity);
         } 
       })
     })
     
-   var queries = generateESQueries(finalEntitiesToBeSearched)
+    var labelSwapPromises = [];
+   Object.keys(finalEntitiesToBeSearched).forEach(key=>{
+     finalEntitiesToBeSearched[key].forEach(function(entity){
+       var query = {};
+       query.query = {};
+       query.query.match = {};
+       query.query.match["_id"] = entity.range.indexPattern;
+       var lsPromise = new Promise(function(resolve, reject) {
+              resolve(queryLabelElasticSearch(".siren", query, graphModel));
+      });
+      labelSwapPromises.push(lsPromise)
+     })
+     
+   })
+   
+   return Promise.all(labelSwapPromises)
+   .then(function(results){
+     console.log(results)
+     results.forEach(function(result){
+       console.log(result.hits.hits[0]["_id"])
+       console.log(result.hits.hits[0]["_source"]["index-pattern"].title)
+       idxLabels[result.hits.hits[0]["_id"]] = result.hits.hits[0]["_source"]["index-pattern"].title;
+     })
+     console.log(idxLabels)
+     console.log(finalEntitiesToBeSearched)
+     var queries = generateESQueries(finalEntitiesToBeSearched)
    var queryPromises = [];
    
+   console.log(queries)
    
    Object.keys(queries).forEach(key=>{
       var elasticSearchPromise = new Promise(function(resolve, reject) {
@@ -225,11 +252,6 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
     });
       queryPromises.push(elasticSearchPromise);
    })
-     
-    queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
-  } else {
-    queryTemplate = 'g.V($1)';
-  }
      
   return Promise.all(queryPromises)
   .then(function(results){
@@ -303,6 +325,10 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
   .catch(function(error){
     console.log(error)
   })
+   })
+    
+   
+  }
      
 }
 
@@ -353,11 +379,18 @@ function entityResToGraph(selection, graphId, queryTemplate){
         return f.executeGremlinQuery(graphId, queryTemplate, selection)
 }
 
+function queryLabelElasticSearch(index, query, graphModel){
+    // for each index
+    return f.executeEsSearch(index, "", query, 1)
+    .then(function (searchResults){
+        return Promise.resolve(searchResults);
+    });
+}
 var ESresultIndex = {};
 
 function queryElasticSearch(index, queries, graphModel){
     // for each index
-    return f.executeEsSearch(index, "", queries[index], 5)
+    return f.executeEsSearch(idxLabels[index], "", queries[index], 5)
     .then(function (searchResults){
         return Promise.resolve(searchResults);
     });
@@ -365,6 +398,8 @@ function queryElasticSearch(index, queries, graphModel){
 
 function generateESQueries(entitiesGrouped){
   var esQueries = {};
+  
+  console.log(entitiesGrouped)
   
   Object.keys(entitiesGrouped).forEach(key=>{
     console.log(entitiesGrouped[key])

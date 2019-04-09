@@ -340,11 +340,12 @@ function createEdges(nodes, virtualEntities){
     
     virt_id_f = virt.id.replace("VIRTUAL_ENTITY/", "")
     virt_id = virt_id_f.substr(0, virt_id_f.indexOf("/"));
-    ei_name = virt_id_f.substr(virt_id_f.indexOf("/")+1);
+    ei_name = virt_id_f.substr(virt_id_f.indexOf("/")+1).replace("+", " ");
     console.log(ei_name)
  
   nodes.forEach(function(node){
     console.log(node)
+    console.log(fields)
     console.log(node.properties[fields[ei_name]][0].value)
     var manual = {};
       manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)

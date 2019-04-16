@@ -303,7 +303,7 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
       
       response.forEach(function(linkNode){
               /*************************
-            * For each result, build Links to Origin Node
+            * For each result, build Links to Origin Node - Not Using this now, but will be
             * *********************/
             var linkPair = {
                 	in: selectedNode.id,
@@ -315,6 +315,7 @@ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) 
                 	color: '#'+Math.floor(Math.random()*16777215).toString(16)
                 };
                 
+            /*For Now we are creating links to Entity Identifiers*/
             var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
             edges.push(edge);
             

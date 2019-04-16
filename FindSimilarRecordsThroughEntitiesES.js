@@ -187,6 +187,14 @@ function onModalOk(scope, graphModel) {
   return selectedRel;
 }
 
+/*******************************
+ * THIS FUNCTION KICKS OFF THE MAIN PROCESS OF ESTABLISHING THE INDICES TO SEARCH, 
+ * AND THE FIELDS WITHIN EACH INDEX. 
+ * THE ES QUERIES ARE DYNAMICALLY CONSTRUCTED AND RUN, WITH THE TOP RESULTS BEING PLACED ON THE GRAPH.
+ * 
+ * THEN WE BUILD EDGES FROM NODE TO NODE, WITH BLUE EDGES REPRESENTING FULL MATCH, AND PINK REPRESENTING 
+ * INEXACT MATCHES.
+ */
 function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) {
   
   var selection = getNodesSelection(graphSelection, graphModel);

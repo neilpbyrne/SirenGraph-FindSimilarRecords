@@ -11,7 +11,7 @@ paths:
     post:
       summary: "Get list of Time Fields in Document"
       description: ""
-      operationId: "GetTimeFields"
+      operationId: "getTimeFields"
       parameters:
       - in: "body"
         name: "info"
@@ -31,7 +31,7 @@ paths:
     post:
       summary: "Get list of Geo Fields in Document"
       description: ""
-      operationId: "GetGeoFields"
+      operationId: "getGeoFields"
       parameters:
       - in: "body"
         name: "info"
@@ -51,7 +51,7 @@ paths:
     post:
       summary: "Get list of Documents within Date Range"
       description: ""
-      operationId: "GetInTimeRange"
+      operationId: "getInTimeRange"
       parameters:
       - in: "body"
         name: "info"
@@ -71,7 +71,7 @@ paths:
     post:
       summary: "Get list of Documents within Geo Range"
       description: ""
-      operationId: "GetInGeoRange"
+      operationId: "getInGeoRange"
       parameters:
       - in: "body"
         name: "info"

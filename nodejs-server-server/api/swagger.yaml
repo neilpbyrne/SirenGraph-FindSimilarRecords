@@ -1,0 +1,216 @@
+---
+swagger: "2.0"
+info:
+  version: "0.0.1"
+  title: "Siren-FindSimilar"
+host: "localhost:8080"
+schemes:
+- "http"
+paths:
+  /GetTimeFields:
+    post:
+      summary: "Get list of Time Fields in Document"
+      description: ""
+      operationId: "GetTimeFields"
+      parameters:
+      - in: "body"
+        name: "info"
+        description: ""
+        required: true
+        schema:
+          $ref: "#/definitions/TimeList_Request_Interface"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/TimeList_Response_Interface"
+      x-swagger-router-controller: "Default"
+  /GetGeoFields:
+    post:
+      summary: "Get list of Geo Fields in Document"
+      description: ""
+      operationId: "GetGeoFields"
+      parameters:
+      - in: "body"
+        name: "info"
+        description: ""
+        required: true
+        schema:
+          $ref: "#/definitions/GeoList_Request_Interface"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/GeoList_Response_Interface"
+      x-swagger-router-controller: "Default"
+  /GetInTimeRange:
+    post:
+      summary: "Get list of Documents within Date Range"
+      description: ""
+      operationId: "GetInTimeRange"
+      parameters:
+      - in: "body"
+        name: "info"
+        description: ""
+        required: true
+        schema:
+          $ref: "#/definitions/TimeRange_Request_Interface"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/TimeRange_Response_Interface"
+      x-swagger-router-controller: "Default"
+  /GetInGeoRange:
+    post:
+      summary: "Get list of Documents within Geo Range"
+      description: ""
+      operationId: "GetInGeoRange"
+      parameters:
+      - in: "body"
+        name: "info"
+        description: ""
+        required: true
+        schema:
+          $ref: "#/definitions/GeoRange_Request_Interface"
+      responses:
+        200:
+          description: "Successful operation"
+          schema:
+            type: "array"
+            items:
+              $ref: "#/definitions/GeoRange_Response_Interface"
+      x-swagger-router-controller: "Default"
+definitions:
+  TimeList_Request_Interface:
+    type: "object"
+    required:
+    - "index"
+    properties:
+      index:
+        type: "string"
+  TimeList_Response_Interface:
+    type: "object"
+    required:
+    - "index"
+    - "results"
+    properties:
+      index:
+        type: "string"
+      results:
+        type: "array"
+        items:
+          type: "string"
+    example:
+      index: "index"
+      results:
+      - "results"
+      - "results"
+  GeoList_Request_Interface:
+    type: "object"
+    required:
+    - "index"
+    properties:
+      index:
+        type: "string"
+  GeoList_Response_Interface:
+    type: "object"
+    required:
+    - "index"
+    - "results"
+    properties:
+      index:
+        type: "string"
+      results:
+        type: "array"
+        items:
+          type: "string"
+    example:
+      index: "index"
+      results:
+      - "results"
+      - "results"
+  TimeRange_Request_Interface:
+    type: "object"
+    required:
+    - "date"
+    - "index"
+    - "range"
+    properties:
+      index:
+        type: "string"
+      date:
+        type: "string"
+      range:
+        type: "string"
+  TimeRange_Response_Interface:
+    type: "object"
+    required:
+    - "date"
+    - "index"
+    - "range"
+    - "results"
+    properties:
+      index:
+        type: "string"
+      date:
+        type: "string"
+      range:
+        type: "string"
+      results:
+        type: "array"
+        items:
+          type: "object"
+          properties: {}
+    example:
+      date: "date"
+      index: "index"
+      range: "range"
+      results:
+      - "{}"
+      - "{}"
+  GeoRange_Request_Interface:
+    type: "object"
+    required:
+    - "geo"
+    - "index"
+    - "range"
+    properties:
+      index:
+        type: "string"
+      geo:
+        type: "string"
+      range:
+        type: "string"
+  GeoRange_Response_Interface:
+    type: "object"
+    required:
+    - "geo"
+    - "index"
+    - "range"
+    - "results"
+    properties:
+      index:
+        type: "string"
+      geo:
+        type: "string"
+      range:
+        type: "string"
+      results:
+        type: "array"
+        items:
+          type: "object"
+          properties: {}
+    example:
+      geo: "geo"
+      index: "index"
+      range: "range"
+      results:
+      - "{}"
+      - "{}"

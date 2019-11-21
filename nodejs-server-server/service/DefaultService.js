@@ -31,14 +31,19 @@ exports.getGeoFields = function(info) {
 }
 
 function getFieldTypeList(fields, type){
- // console.log(fields)
+  console.log("list")
+  console.log(fields)
   var fieldList = [];
   Object.keys(fields).forEach(function(key, index) {
-    console.log(fields[key]);
+    console.log(type)
+    console.log(fields[key].type);
+
     if (fields[key].type === type){
       fieldList.push(key);
     }
   });
+  console.log("result")
+  console.log(fieldList)
   return fieldList;
 }
 
@@ -51,25 +56,47 @@ function getFieldTypeList(fields, type){
  * returns List
  **/
 exports.getInGeoRange = function(info) {
+  info.type = "doc";
   return new Promise(function(resolve, reject) {
-    var examples = {};
-    examples['application/json'] = [ {
-  "geo" : "geo",
-  "index" : "index",
-  "range" : "range",
-  "results" : [ "{}", "{}" ]
-}, {
-  "geo" : "geo",
-  "index" : "index",
-  "range" : "range",
-  "results" : [ "{}", "{}" ]
-} ];
-    if (Object.keys(examples).length > 0) {
-      resolve(examples[Object.keys(examples)[0]]);
-    } else {
-      resolve();
-    }
+    var url = "http://localhost:9220/"+info.index+"/"+info.type+"/_search";
+
+    fetch(url,
+      {
+          method: 'POST',
+          body: JSON.stringify(constructGeoProximityQuery(info.geo, info.range, "geo_location")),
+          headers:{
+              'Content-Type': 'application/json',
+          }
+      })
+      .then(function(result){
+         // console.log(result.json())
+          return result.json();
+      })
+      .then(function(json){
+        resolve(json);
+      })
+      .catch(function(error){
+        resolve(error);
+      })
   });
+}
+
+function constructGeoProximityQuery(point, distance, field){
+  var pointObj = JSON.parse(point);
+  console.log(pointObj)
+  var geoprox = {};
+  geoprox.query = {};
+  geoprox.query.bool = {};
+  geoprox.query.bool.must = {};
+  geoprox.query.bool.must.match_all = {};
+  geoprox.query.bool.filter = {};
+  geoprox.query.bool.filter.geo_distance = {};
+  geoprox.query.bool.filter.geo_distance.distance = distance;
+  geoprox.query.bool.filter.geo_distance[field] = pointObj;
+
+  console.log(JSON.stringify(geoprox))
+
+  return geoprox;
 }
 
 
@@ -88,7 +115,7 @@ exports.getInTimeRange = function(info) {
     fetch(url,
       {
           method: 'POST',
-          body: JSON.stringify(constructTimeRangeQuery("Start_Date", info.date, info.range)),
+          body: JSON.stringify(constructTimeRangeQuery("dt", info.date, info.range)),
           headers:{
               'Content-Type': 'application/json',
           }
@@ -113,7 +140,9 @@ function constructTimeRangeQuery(field, dateBefore, dateAfter){
   rangeQuery.query.range[field] = {};
   if (dateAfter) rangeQuery.query.range[field].gte = dateAfter;
   if (dateBefore) rangeQuery.query.range[field].lte = dateBefore;
-  rangeQuery.query.range[field].format = "dd/MM/yyyy||yyyy||yyyy-MM-dd";
+  rangeQuery.query.range[field].format = "yyyy-MM-dd";
+
+  console.log(JSON.stringify(rangeQuery))
 
   return rangeQuery;
 }

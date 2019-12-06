@@ -15,9 +15,8 @@
                 <div class="wrapper">
                 <div class="grid-header">
                     <div class="header-item"></div>
-                    <div class="header-item" title="Regular Search">
-                      <div>Exact</div>
-                    </div>
+                    <div class="header-item" title="Exclude this Entity from search">Ignore</div>
+                    <div class="header-item" title="Regular Search">Exact</div>
                     <div class="header-item" title="Fuzzy">Approx</div>
                     <div class="header-item" title="More Like This">MLT</div>
                     <div class="header-item" title="Boost">Boost</div>
@@ -28,16 +27,19 @@
                     <div class="flex-item">City</div>
                     
                     <label class="flex-item">
-                      <input type="radio" value="critical" name="city"> <span></span>
+                      <input type="radio" value="city ignore" name="city" checked> <span></span>
                     </label>
                     
                     <label class="flex-item">
-                      <input type="radio" value="high" name="city"> <span></span>
+                      <input type="radio" value="city exact" name="city"> <span></span>
                     </label>
                     
                     <label class="flex-item">
-                      <input type="radio" value="medium" name="city"> <span></span>
+                      <input type="radio" value="city fuzzy" name="city"> <span></span>
                     </label>
+                    <label class="flex-item">
+                        <input type="radio" value="city mlt" name="city"> <span></span>
+                      </label>
                     
                     <label class="flex-item">
                       <div class="slider boost">
@@ -53,17 +55,21 @@
                   <!--Each Grid Row amounts to ONE Entity Identifier -->
                   <div class="grid-row">
                     <div class="flex-item">Email</div>
+
+                    <label class="flex-item">
+                        <input type="radio" value="email ignore" name="email" checked> <span></span>
+                      </label>
                     
                     <label class="flex-item">
-                      <input type="radio" value="email-auto" name="priority"> <span></span>
+                      <input type="radio" value="email auto" name="email"> <span></span>
                     </label>
                     
                     <label class="flex-item">
-                      <input type="radio" value="email-fuzzy" name="priority"> <span></span>
+                      <input type="radio" value="email fuzzy" name="email"> <span></span>
                     </label>
                     
                     <label class="flex-item">
-                      <input type="radio" value="email-mlt" name="priority"> <span></span>
+                      <input type="radio" value="email mlt" name="email"> <span></span>
                     </label>
                     
                     <label class="flex-item">
@@ -85,7 +91,7 @@
                     </label>
                   </div>
                   <div class="slider time">
-                      <div class="time-dropdown" style="float: left;"><select>
+                      <div class="time dropdown" style="float: left;"><select>
                           <option value="" selected disabled hidden>Choose here</option>
                           <option value="1">One</option>
                           <option value="2">Two</option>
@@ -95,9 +101,9 @@
                         </select>
                       </div>
                       <div class="range-slider">
-                          <input class=" days" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">days</div>
-                          <input class=" months" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">mths</div>
-                          <input class=" years" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">yrs</div>
+                          <input class="inp days" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">days</div>
+                          <input class="inp months" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">mths</div>
+                          <input class="inp years" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">yrs</div>
                         <!-- <input class="range-slider__range" type="range" value="100" min="0" max="500">
                         <span class="range-slider__value">0</span> days -->
                      </div>
@@ -111,7 +117,7 @@
                     </label>
                   </div>
                   <div class="slider geo" style="float: left;">
-                    <div class="geo-dropdown" style="float: left;"><select>
+                    <div class="geo dropdown" style="float: left;"><select>
                         <option value="" selected disabled hidden>Choose here</option>
                         <option value="1">One</option>
                         <option value="2">Two</option>
@@ -123,8 +129,8 @@
                   
                       <div class="range-slider">
                         
-                          <input class="metres" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div>
-                          <input class="km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div>
+                          <input class="inp metres" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div>
+                          <input class="inp km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div>
                         <!-- <input class="range-slider__range" type="range" value="100" min="0" max="500"> -->
                         <!-- <span class="range-slider__value"></span> km -->
                      </div>
@@ -159,10 +165,23 @@
 rangeSlider();
 constructCompoundQuery();
 
+function readUserInput(){
+  testEntites = ["city", "email"];
+  eids = [];
+  for (var i = 0; i < testEntites.length; i++) {
+    eids[testEntites[i]] = $("input[name='"+testEntites[i]+"']:checked").val()
+  }
+  
+
+  console.log(eids)
+  
+}
+
 const btn = document.querySelector('button');
     btn.addEventListener('click',getData);
     
     function getData(e){
+      readUserInput();
       d = constructCompoundQuery([{mlt:true},{fuzzy:true}], true, true);
       console.log(d)
         $.ajax({

@@ -10,8 +10,6 @@
 }
 .grid-row, .grid-header {
   display:flex;
-/*   flex: 1 0 auto; */
-/*   height: auto; */
 }
 .sig-section-comments{
   display: flex;
@@ -30,7 +28,6 @@
 .header-item {
   width:100px;
   text-align:center;
-/*   border:1px solid transparent; */
 }
 .header-item:nth-child(1) {
   width:180px;
@@ -39,17 +36,15 @@
   font-size: 0.7em;
 }
 .flex-item:before {
-  content: '';
+  content: "";
   padding-top:26%;
 }
 .flex-item {
   display:flex;
-/*   flex-basis:25%; */
   width:100px;
   border-bottom:1px solid #ccc;
   justify-content: center;
   align-items:center;
-/*   text-align:left; */
   font-size: 1em;
   font-weight:normal;
   color:#999;
@@ -61,7 +56,6 @@
   width:180px;
   justify-content: left;
 }
-/* HTML5 Boilerplate accessible hidden styles */
 
 [type="radio"], [type="checkbox"] {
   border: 0; 
@@ -88,16 +82,13 @@
 }
 
 
-/* One radio button per line */
 label {
-  /*display: block;*/
   cursor: pointer;
 }
 
-/* the basic, unchecked style */
 [type="radio"] + span:before,
 [type="checkbox"] + span:before{
-  content: '';
+  content: "";
   display: inline-block;
   width: 1.5em;
   height: 1.5em;
@@ -111,7 +102,6 @@ label {
   margin-right: 0.75em;
 }
 
-/* the checked style using the :checked pseudo class */
 [type="radio"]:checked + span:before,
 [type="checkbox"]:checked + span:before{
   background: green;
@@ -120,7 +110,7 @@ label {
 
 /* never forget focus styling */
 [type="radio"]:focus span:after {
-  content: '\0020\2190';
+  content: "\0020\2190";
   font-size: 1.5em;
   line-height: 1;
   vertical-align: -0.125em;

@@ -1,4 +1,4 @@
-  /*
+/*
   * Find Similar Records
   *
   *
@@ -120,13 +120,16 @@
     return false;
   }
 
+    var commonEIDs = []
+
+
   function selectEntities(entityIdSet, newGraphSelection){
     f.getKibiRelations()
       .then(function (relations) {
         
         var arrayOfPromises = [];
         
-        var commonEIDs = []
+        commonEIDs = []
         var eidCounts = {};
         var nodeTypesSelected = new Set();
 
@@ -186,9 +189,23 @@
           var html = '<div>';
           
             commonEIDs.forEach(function (element) {
-                // html for enity identifier line
-                miniHtml += '<div class="grid-row"> <div class="flex-item">'+element+'</div><label class="flex-item"> <input type="radio" value="'+element+'" ignore" name="'+element+'" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="'+element+' exact" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="'+element+' fuzzy" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="'+element+' mlt" name="'+element+'"> <span></span> </label> <label class="flex-item"> <div class="slider boost"> <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div></div></label> </div>'
-
+  
+                miniHtml += '<div class="grid-row"> <div class="flex-item">'+element+'</div><label class="flex-item"> <input type="radio" value="ignore" name="'+element+'" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="exact" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="fuzzy" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="mlt" name="'+element+'"> <span></span> </label> <label class="flex-item"> <div class="slider boost"><input class="inp" id="'+element+'Boost" type="number" value="1" min="1" max="5">'
+                // CODE FOR BOOST SLIDER
+                // <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div>'
+                  // slider.each(function(){
+                  //       value.each(function(){
+                  //         var value = $(this).prev().attr('value');
+                  //         $(this).html(value);
+                  //       });
+                    
+                  //       range.on('input', function(){
+                  //         $(this).next(value).html(this.value);
+                  //       });
+                  //     });
+                  
+                  miniHtml += '</div></label> </div>'
+                      
                 // html = html + '<input type="checkbox" ng-model=\'relations["' + element.id + '"]\'> '
                 //   + element.label + ' (' + element.count + ')'
                 //   + '<span style=\'font-size:0.8em;font-style: italic\'>' + element.rangeLabel + '</span>'
@@ -199,28 +216,29 @@
             // Html for Time, Geo, and # of Records
             // Time Field - Check if we have time records, if so, add to dropdown list
             if(datelist.length>0){
-              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="time" name="time"> <span>Time Filter</span> </label> </div><div class="slider time"> <div class="time dropdown" style="float: left;">'
-              miniHtml += '<select id = "time_select"> <option value="" selected disabled hidden>Choose here</option>'
-              for (date in datelist){ 
-               miniHtml += '<option value="'+date +'">'+ datelist[date].type  +'  -  '+ datelist[date].label  +'  -   '+ datelist[date].date  +'</option>'
-             }
-             miniHtml += '</select> </div><div class="range-slider"> <input class="time_days inp" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">days</div><input class="inp time_months" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">mths</div><input class="inp time_years" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">yrs</div></div></div></div>'
-            }
-            
-            if(geolist.length>0){
-             miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="geo" name="geo"> <span>Geo Filter</span> </label> </div><div class="slider geo" style="float: left;"> <div class="geo dropdown" style="float: left;">'
-             miniHtml += '<select id="geo_select"> <option value="" selected disabled hidden>Choose here</option>' 
-             for (geo in geolist){
-              miniHtml += '<option value="'+geo +'">'+ geolist[geo].type  +'  -  '+ geolist[geo].label  +'  -   '+ geolist[geo].lat  +' -   '+ geolist[geo].lon  +'</option>' 
-             }
-             miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
-            }
-            miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <div class="range-slider"> <input class="range-slider__range" type="range" value="5" min="0" max="20"> <span class="range-slider__value">0</span> top results </div></div></div><div> <button class="btn btn-save">Find Records</button> </div></div></fieldset>';
-            
+                miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="time" name="time"> <span>Time Filter</span> </label> </div><div class="slider time"> <div class="time dropdown" style="float: left;">'
+                miniHtml += '<select id = "time_select"> <option value="" selected disabled hidden>Choose here</option>'
+                for (date in datelist){ 
+                 miniHtml += '<option value="'+date +'">'+ datelist[date].type  +'  -  '+ datelist[date].label  +'  -   '+ datelist[date].date  +'</option>'
+               }
+               miniHtml += '</select> </div><div class="range-slider"> <input class="time_days inp" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">days</div><input class="inp time_months" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">mths</div><input class="inp time_years" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">yrs</div></div></div></div>'
+              }
+              
+              if(geolist.length>0){
+               miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="geo" name="geo"> <span>Geo Filter</span> </label> </div><div class="slider geo" style="float: left;"> <div class="geo dropdown" style="float: left;">'
+               miniHtml += '<select id="geo_select"> <option value="" selected disabled hidden>Choose here</option>' 
+               for (geo in geolist){
+                miniHtml += '<option value="'+geo +'">'+ geolist[geo].type  +'  -  '+ geolist[geo].label  +'  -   '+ geolist[geo].lat  +' -   '+ geolist[geo].lon  +'</option>' 
+               }
+               miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
+              }
+              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <input id="limitResults" type="number" value="1" min="1" max="50"></div></div> </div></div></fieldset>';
+                      
 
           // html = html + '</div>';
           html = miniHtml;
           f.openModal(graphId ,'Select the fields you want to base search on', html);
+          
 
           return {
             model: null,
@@ -230,30 +248,57 @@
       });
   }
 
-function readUserInputTimeGeo(){
-  var eids = [];
-  // eids["time"] = $('#time_select option:selected').text()
-  // eids["geo"] = $("#geo_select option:selected").text()
-  //console.log($('#time_select').val())
-  //console.log($("#geo_select").val())
-  var timeObject = {}
-  var geoObject = {}
-  timeObject["dateDropdown"] = datelist[$('#time_select').val()]
-  timeObject["days"] = $('.time_days').val()
-  timeObject["months"] = $('.time_months').val()
-  timeObject["years"] = $('.time_years').val()
+function readLimitResults(){
   
-  geoObject["geoDropdown"] = geolist[$("#geo_select").val()]
-  geoObject["metres"] = $('.geo_metres').val()
-  geoObject["km"] = $('.geo_km').val()
-  eids["time"] = timeObject
-  eids["geo"] = geoObject
-  console.log(eids)
+    //eids = [];
+    var limitObject = {};
+    limitObject["limitResults"] = $('#'+"limitResults").val()
+    console.log(limitObject)
+    //eidSelection["action"] = $("input[name='"+commonEIDs[i]+"']:checked").val()
+    //eids = limitObject
+  
+  //console.log(eids)
+  
 }
+
+function readUserInputTimeGeo(){
+    var eids = [];
+    // eids["time"] = $('#time_select option:selected').text()
+    // eids["geo"] = $("#geo_select option:selected").text()
+    //console.log($('#time_select').val())
+    //console.log($("#geo_select").val())
+    var timeObject = {}
+    var geoObject = {}
+    timeObject["dateDropdown"] = datelist[$('#time_select').val()]
+    timeObject["days"] = $('.time_days').val()
+    timeObject["months"] = $('.time_months').val()
+    timeObject["years"] = $('.time_years').val()
+    
+    geoObject["geoDropdown"] = geolist[$("#geo_select").val()]
+    geoObject["metres"] = $('.geo_metres').val()
+    geoObject["km"] = $('.geo_km').val()
+    eids["time"] = timeObject
+    eids["geo"] = geoObject
+    console.log(eids)
+  }
 
 var selectionNodes = [];
 var datelist = []
 var geolist = []
+
+function readUserInputEID(){
+  
+  eids = [];
+  for (var i = 0; i < commonEIDs.length; i++) {
+    var eidSelection = {}
+    eidSelection["boost"] = $('#'+commonEIDs[i]+"Boost").val()
+    eidSelection["action"] = $("input[name='"+commonEIDs[i]+"']:checked").val()
+    eids[commonEIDs[i]] = eidSelection
+  }
+  
+  console.log(eids)
+  
+}
 
   function getNodesSelection(graphSelection, graphModel) {
     console.log(graphSelection)
@@ -402,7 +447,10 @@ var geolist = []
   
 
   function onModalOk(scope, graphModel) {
-    readUserInputTimeGeo()
+    readUserInputEID();
+    readUserInputTimeGeo();
+    readLimitResults();
+    
     var selectedRel = [];
     for (var rel in scope.relations) {
       if (scope.relations.hasOwnProperty(rel)) {

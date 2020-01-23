@@ -42,7 +42,123 @@
   
   // miniHtml += '<div class="grid-row"> <div class="flex-item">Email</div><label class="flex-item"> <input type="radio" value="email ignore" name="email" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="email auto" name="email"> <span></span> </label> <label class="flex-item"> <input type="radio" value="email fuzzy" name="email"> <span></span> </label> <label class="flex-item"> <input type="radio" value="email mlt" name="email"> <span></span> </label> <label class="flex-item"> <div class="slider boost"> <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div></div></label> </div>'
   
+  ///////////////////////////// ELASTIC QUERY CONSTRUCTION ///////////////////////////////////
+  function constructFuzzyQuery(queryText, matchOnField){
+    var fuzzy = {};
+    fuzzy.match = {};
+    fuzzy.match[matchOnField] = {};
+    fuzzy.match[matchOnField].query = queryText;
+    fuzzy.match[matchOnField].boost = 1;
+    fuzzy.match[matchOnField].fuzziness = "AUTO";
+    fuzzy.match[matchOnField].operator = "OR";
+    fuzzy.match[matchOnField].prefix_length = 0;
+    fuzzy.match[matchOnField].max_expansions = 50;
+    fuzzy.match[matchOnField].fuzzy_transpositions = true;
+    fuzzy.match[matchOnField].lenient = true;
+    fuzzy.match[matchOnField].zero_terms_query = "ALL";
+
+    console.log(fuzzy)
+
+    return fuzzy;
+  }
   
+  function constructMoreLikeThisQuery(originalId, fieldsToCompare, indexToCompare, type){
+    var moreLikeThis = {};
+    // moreLikeThis.size = 5;
+    // moreLikeThis.query = {};
+    moreLikeThis.more_like_this = {};
+    moreLikeThis.more_like_this.min_term_freq = 1;
+    moreLikeThis.more_like_this.min_doc_freq = 1;
+    moreLikeThis.more_like_this.fields = [];
+    for (field in fieldsToCompare){
+      moreLikeThis.more_like_this.fields.push(fieldsToCompare[field]);
+    }
+
+    moreLikeThis.more_like_this.like = {};
+    moreLikeThis.more_like_this.like._index = indexToCompare;
+    moreLikeThis.more_like_this.like._type = type;
+    moreLikeThis.more_like_this.like._id = originalId;
+
+    console.log(moreLikeThis)
+
+    return moreLikeThis;
+  }
+
+  function constructGeoProximityQuery(point, distance, field){
+    console.log(point)
+    //var pointObj = JSON.parse(point);
+    // console.log(pointObj)
+    var geoprox = {};
+    // geoprox.query = {};
+    geoprox.bool = {};
+    geoprox.bool.must = {};
+    geoprox.bool.must.match_all = {};
+    geoprox.bool.filter = {};
+    geoprox.bool.filter.geo_distance = {};
+    geoprox.bool.filter.geo_distance.distance = distance;
+    geoprox.bool.filter.geo_distance[field] = point;
+  
+    console.log(JSON.stringify(geoprox))
+  
+    return geoprox;
+  }
+
+  function constructTimeRangeQuery(field, dateBefore, dateAfter){
+    var rangeQuery = {};
+    // rangeQuery.query = {};
+    rangeQuery.range = {};
+    rangeQuery.range[field] = {};
+    if (dateAfter) rangeQuery.range[field].gte = dateAfter;
+    if (dateBefore) rangeQuery.range[field].lte = dateBefore;
+    rangeQuery.range[field].format = "yyyy-MM-dd";
+  
+    console.log(JSON.stringify(rangeQuery))
+  
+    return rangeQuery;
+  }
+
+  function constructCompoundQuery(eids, timeGeoQuery, limitResults){
+    console.log(eids)
+    console.log(timeGeoQuery)
+    console.log(limitResults)
+    var query = {};
+    query.query = {};
+    query.query.bool = {}
+    query.query.bool.must = [];
+    
+    findCommonIndicesToSearch();
+    if (timeGeoQuery.time.dateDropdown) query.query.bool.must.push(constructTimeRangeQuery("founded_date", "2090-01-01", "2000-01-01"))
+    if (timeGeoQuery.geo.geoDropdown) query.query.bool.must.push(constructGeoProximityQuery({"lon":"-96.20", "lat":"44.20"}, "800km", "location"))
+
+    for(eid in eids){
+      console.log(eids[eid])
+      if (eids[eid].action ==="mlt") query.query.bool.must.push(constructMoreLikeThisQuery("RmCJZG4BFquVIwfewy1n", ["overview"], "company", "Company"))
+      else if (eids[eid].action === "fuzzy") query.query.bool.must.push(constructFuzzyQuery("creative communications and production", "overview"))
+      // else if (eid.match) query.query.bool.must.push(constructMatchQuery())
+    }
+
+    console.log(JSON.stringify(query));
+    return JSON.stringify(query);
+  }
+  
+  function findCommonIndicesToSearch(){
+    var eidRelationSets = {};
+     f.getKibiRelations()
+      .then(function (relations) {
+        console.log(relations)
+        for (relation in relations){
+          console.log(relations[relation].domain.id.substr(0,4))
+          if (relations[relation].domain.id.substr(0,4) === "eid:"){
+            var eidName = relations[relation].domain.label;
+            console.log(eidName)
+            if (!eidRelationSets[eidName]) {eidRelationSets[eidName] = [];}
+            eidRelationSets[eidName].push(relations[relation].range.indexPattern);
+          }
+        }
+        console.log(eidRelationSets)
+      });
+      
+  }
 
   function getCount(graphId, newGraphSelection, relation) {
     var queryTemplate = 'g.V($1).bothE("' + relation.id  + '").count()';
@@ -159,7 +275,6 @@
             }
             
             
-            
             if (relation.directLabel === relation.inverseLabel
               && !bidirectionalRelation.has(relation.directLabel)) {
               
@@ -232,7 +347,7 @@
                }
                miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
               }
-              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <div class="range-slider"> <input class="range-slider__range" type="range" value="5" min="0" max="20"> <span class="range-slider__value">0</span> top results </div></div></div><div> <button class="btn btn-save">Find Records</button> </div></div></fieldset>';
+              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <input id="limitResults" type="number" value="1" min="1" max="50"></div></div> </div></div></fieldset>';
                       
 
           // html = html + '</div>';
@@ -247,6 +362,19 @@
         });//end Promise.all
       });
   }
+
+  function readLimitResults(){
+  
+    //eids = [];
+    var limitObject = {};
+    limitObject["limitResults"] = $('#'+"limitResults").val()
+    return limitObject;
+    //eidSelection["action"] = $("input[name='"+commonEIDs[i]+"']:checked").val()
+    //eids = limitObject
+  
+  //console.log(eids)
+  
+}
 
 function readUserInputTimeGeo(){
     var eids = [];
@@ -266,7 +394,7 @@ function readUserInputTimeGeo(){
     geoObject["km"] = $('.geo_km').val()
     eids["time"] = timeObject
     eids["geo"] = geoObject
-    console.log(eids)
+    return eids;
   }
 
 var selectionNodes = [];
@@ -283,7 +411,7 @@ function readUserInputEID(){
     eids[commonEIDs[i]] = eidSelection
   }
   
-  console.log(eids)
+  return eids;
   
 }
 
@@ -434,8 +562,9 @@ function readUserInputEID(){
   
 
   function onModalOk(scope, graphModel) {
-    readUserInputEID();
-    readUserInputTimeGeo();
+
+    constructCompoundQuery(readUserInputEID(), readUserInputTimeGeo(), readLimitResults());
+
     var selectedRel = [];
     for (var rel in scope.relations) {
       if (scope.relations.hasOwnProperty(rel)) {

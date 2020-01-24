@@ -62,7 +62,7 @@
     return fuzzy;
   }
   
-  function constructMoreLikeThisQuery(originalId, fieldsToCompare, indexToCompare, type){
+  function constructMoreLikeThisQuery(fieldsToCompare, queryContent){
     var moreLikeThis = {};
     // moreLikeThis.size = 5;
     // moreLikeThis.query = {};
@@ -70,14 +70,12 @@
     moreLikeThis.more_like_this.min_term_freq = 1;
     moreLikeThis.more_like_this.min_doc_freq = 1;
     moreLikeThis.more_like_this.fields = [];
-    for (field in fieldsToCompare){
-      moreLikeThis.more_like_this.fields.push(fieldsToCompare[field]);
-    }
 
-    moreLikeThis.more_like_this.like = {};
-    moreLikeThis.more_like_this.like._index = indexToCompare;
-    moreLikeThis.more_like_this.like._type = type;
-    moreLikeThis.more_like_this.like._id = originalId;
+      moreLikeThis.more_like_this.fields.push(fieldsToCompare);
+    
+
+    moreLikeThis.more_like_this.like = queryContent;
+
 
     console.log(moreLikeThis)
 
@@ -118,46 +116,130 @@
   }
 
   function constructCompoundQuery(eids, timeGeoQuery, limitResults){
-    console.log(eids)
     console.log(timeGeoQuery)
     console.log(limitResults)
-    var query = {};
-    query.query = {};
-    query.query.bool = {}
-    query.query.bool.must = [];
     
-    findCommonIndicesToSearch();
-    if (timeGeoQuery.time.dateDropdown) query.query.bool.must.push(constructTimeRangeQuery("founded_date", "2090-01-01", "2000-01-01"))
-    if (timeGeoQuery.geo.geoDropdown) query.query.bool.must.push(constructGeoProximityQuery({"lon":"-96.20", "lat":"44.20"}, "800km", "location"))
+    
+    findCommonIndicesToSearch(selectionNodes, eids);
+
+
+    // if (timeGeoQuery.time.dateDropdown) query.query.bool.must.push(constructTimeRangeQuery("founded_date", "2090-01-01", "2000-01-01"))
+    // if (timeGeoQuery.geo.geoDropdown) query.query.bool.must.push(constructGeoProximityQuery({"lon":"-96.20", "lat":"44.20"}, "800km", "location"))
 
     for(eid in eids){
       console.log(eids[eid])
-      if (eids[eid].action ==="mlt") query.query.bool.must.push(constructMoreLikeThisQuery("RmCJZG4BFquVIwfewy1n", ["overview"], "company", "Company"))
-      else if (eids[eid].action === "fuzzy") query.query.bool.must.push(constructFuzzyQuery("creative communications and production", "overview"))
+      // if (eids[eid].action ==="mlt") 
+      // else if (eids[eid].action === "fuzzy") query.query.bool.must.push(constructFuzzyQuery("creative communications and production", "overview"))
       // else if (eid.match) query.query.bool.must.push(constructMatchQuery())
     }
 
-    console.log(JSON.stringify(query));
-    return JSON.stringify(query);
+    // console.log(JSON.stringify(query));
+    // return JSON.stringify(query);
   }
   
-  function findCommonIndicesToSearch(){
+  function findCommonIndicesToSearch(selectedNodes, eids){
     var eidRelationSets = {};
      f.getKibiRelations()
       .then(function (relations) {
         console.log(relations)
         for (relation in relations){
           console.log(relations[relation].domain.id.substr(0,4))
-          if (relations[relation].domain.id.substr(0,4) === "eid:"){
+          if (relations[relation].domain.id.substr(0,4) === "eid:"){ // This finds the indices eids are connected to (<-), and the fields in them that we will search
             var eidName = relations[relation].domain.label;
             console.log(eidName)
             if (!eidRelationSets[eidName]) {eidRelationSets[eidName] = [];}
-            eidRelationSets[eidName].push(relations[relation].range.indexPattern);
+            var indexPatternAndField = {};
+            indexPatternAndField["indexPattern"] = relations[relation].range.indexPattern;
+            indexPatternAndField["field"] = relations[relation].rangeField;
+            eidRelationSets[eidName].push(indexPatternAndField);
+          }
+          
+        }
+        console.log(eidRelationSets) // Level 2 search
+        console.log(eids) // Level 1 search
+        console.log(selectedNodes) // Level3 search
+        
+        var targetIndices = [];
+        
+        var queries = [];
+        var fieldList = [];
+        // Top Level of Query
+        Object.keys(eids).forEach(function(eid){ // For each EID, if 'action' is mlt/fuzzy/exact we first construct the query by finding common connecting source index patterns, then adding content of that connecting 'field' to the query string
+          var queryTerm = "";
+          
+          if (eids[eid].action === "mlt" || eids[eid].action === "exact" || eids[eid].action ==="fuzzy"){ // search type mlt, so we construct the query term
+          var eidIndices = eidRelationSets[eid]; // select one eid, list of connecting index patterns
+            for(var indexPattern in eidIndices){
+              
+              
+              var index = eidIndices[indexPattern].indexPattern;
+              var field = eidIndices[indexPattern];
+              //Constructing list of indexes to search, and an associated list of fields
+              if (!fieldList[index]){ fieldList[index] = [];}
+              if (fieldList[index].indexOf(field.field) < 0) {fieldList[index].push(field.field)}
+              // now we have connecting index and field, we see if selected nodes are of this type
+              for (var node in selectedNodes){
+                var ip = selectedNodes[node];
+                if (ip.indexPattern === index){ // we matched the connecting index to a selected node, now we concat the query term
+                  if(ip.payload[field.field]){
+                    queryTerm += ip.payload[field.field] + " ";  
+                  }
+                  
+                }
+              }
+              
+            }
+            var query = {};
+            query["queryTerm"] = queryTerm;
+            query["type"] = eids[eid].action;
+            // query["fields"] = fieldList;
+            queries.push(query);
+            //CONSTRUCT query indent 1 (corresponds to selected EID and action)
+          }
+          
+      });
+      // TODO: Now that we have queries, we filter eid Relation Sets so that only index Patterns that are common to each EID will be searched
+      // As an aside, we can test each index pattern to see if it will also be a target index to be searched
+      // var targetIndex = filterTargetIndicesToBeSearched(eidRelationSets, eidIndices, indexPattern)
+      
+      var query = {};
+    query.query = {};
+    query.query.bool = {}
+    query.query.bool.should = [];
+      console.log(queries);
+      console.log(fieldList)
+      for (var quer in fieldList){
+        // we iterate through index pattern list. If number of fields matches number of level 1 query types, then we continue, as this proves common connectivity
+        console.log(fieldList[quer].length)
+        console.log(queries.length)
+        if (fieldList[quer].length === queries.length){
+          // this is good to search, construct query. Loop through query terms
+          for (var queryBlock in queries){
+            console.log(queries[queryBlock])
+            //TODO tweak this  - working ok now, but query construction slightly incorrect
+            if (queries[queryBlock].type === "mlt"){
+              console.log(fieldList[quer][queryBlock])
+              console.log(queries[queryBlock].queryTerm)
+              query.query.bool.should.push(constructMoreLikeThisQuery(fieldList[quer][queryBlock], queries[queryBlock].queryTerm));
+              
+            }
+            else if (queries[queryBlock].type === "fuzzy"){}
+            else if (queries[queryBlock].type === "exact"){}
           }
         }
-        console.log(eidRelationSets)
+      }
+      console.log(JSON.stringify(query))
       });
       
+  }
+  
+  function filterEidIndicesToBeSearched(eidRelationSets, eidIndics, index){
+    for (ind in eidRelationSets){
+      if (ind !== index){
+        
+      }
+    }
+    
   }
 
   function getCount(graphId, newGraphSelection, relation) {

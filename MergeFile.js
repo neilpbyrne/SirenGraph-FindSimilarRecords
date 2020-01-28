@@ -57,9 +57,19 @@
     fuzzy.match[matchOnField].lenient = true;
     fuzzy.match[matchOnField].zero_terms_query = "ALL";
 
-    console.log(fuzzy)
 
     return fuzzy;
+  }
+  
+   function constructExactQuery(queryText, matchOnField){
+    var exact = {};
+    exact.match = {};
+    exact.match[matchOnField] = {};
+    exact.match[matchOnField].query = queryText;
+    exact.match[matchOnField].boost = 1;
+
+
+    return exact;
   }
   
   function constructMoreLikeThisQuery(fieldsToCompare, queryContent){
@@ -71,13 +81,9 @@
     moreLikeThis.more_like_this.min_doc_freq = 1;
     moreLikeThis.more_like_this.fields = [];
 
-      moreLikeThis.more_like_this.fields.push(fieldsToCompare);
+    moreLikeThis.more_like_this.fields.push(fieldsToCompare);
     
-
     moreLikeThis.more_like_this.like = queryContent;
-
-
-    console.log(moreLikeThis)
 
     return moreLikeThis;
   }
@@ -115,12 +121,12 @@
     return rangeQuery;
   }
 
-  function constructCompoundQuery(eids, timeGeoQuery, limitResults){
+  function constructCompoundQuery(graphModel, eids, timeGeoQuery, limitResults){
     console.log(timeGeoQuery)
     console.log(limitResults)
     
     
-    findCommonIndicesToSearch(selectionNodes, eids);
+    findCommonIndicesToSearch(selectionNodes, eids, graphModel);
 
 
     // if (timeGeoQuery.time.dateDropdown) query.query.bool.must.push(constructTimeRangeQuery("founded_date", "2090-01-01", "2000-01-01"))
@@ -137,9 +143,9 @@
     // return JSON.stringify(query);
   }
   
-  function findCommonIndicesToSearch(selectedNodes, eids){
+  function findCommonIndicesToSearch(graphModel, eids, selectedNodes, limitResults){
     var eidRelationSets = {};
-     f.getKibiRelations()
+     return f.getKibiRelations()
       .then(function (relations) {
         console.log(relations)
         for (relation in relations){
@@ -187,6 +193,7 @@
                   
                 }
               }
+              queryTerm = queryTerm.trim();
               
             }
             var query = {};
@@ -201,69 +208,55 @@
       // TODO: Now that we have queries, we filter eid Relation Sets so that only index Patterns that are common to each EID will be searched
       // As an aside, we can test each index pattern to see if it will also be a target index to be searched
       // var targetIndex = filterTargetIndicesToBeSearched(eidRelationSets, eidIndices, indexPattern)
-      
+       var esQueries = [];
       var query = {};
-    query.query = {};
-    query.query.bool = {}
-    query.query.bool.should = [];
+      query.query = {};
+      query.query.bool = {}
+      query.query.bool.should = [];
       console.log(queries);
       console.log(fieldList)
       for (var quer in fieldList){
         // we iterate through index pattern list. If number of fields matches number of level 1 query types, then we continue, as this proves common connectivity
-        console.log(fieldList[quer].length)
-        console.log(queries.length)
+        console.log(fieldList[quer])
+        console.log(quer)
         if (fieldList[quer].length === queries.length){
           // this is good to search, construct query. Loop through query terms
           for (var queryBlock in queries){
             console.log(queries[queryBlock])
-            //TODO tweak this  - working ok now, but query construction slightly incorrect
             if (queries[queryBlock].type === "mlt"){
               console.log(fieldList[quer][queryBlock])
               console.log(queries[queryBlock].queryTerm)
               query.query.bool.should.push(constructMoreLikeThisQuery(fieldList[quer][queryBlock], queries[queryBlock].queryTerm));
               
             }
-            else if (queries[queryBlock].type === "fuzzy"){}
-            else if (queries[queryBlock].type === "exact"){}
+            else if (queries[queryBlock].type === "fuzzy"){
+              query.query.bool.should.push(constructFuzzyQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
+
+            }
+            else if (queries[queryBlock].type === "exact"){
+               console.log(fieldList[quer][queryBlock])
+              console.log(queries[queryBlock].queryTerm)
+              query.query.bool.should.push(constructExactQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
+            }
           }
         }
+        var esQuery = {};
+        esQuery.index = quer.substr(quer.indexOf(":")+1);
+        esQuery.query = query;
+         esQueries.push(esQuery)
+       // queryElasticSearch(quer.substr(quer.indexOf(":")+1), query, graphModel)
       }
-      console.log(JSON.stringify(query))
+            return Promise.resolve(esQueries)
       });
       
   }
   
-  function filterEidIndicesToBeSearched(eidRelationSets, eidIndics, index){
-    for (ind in eidRelationSets){
-      if (ind !== index){
-        
-      }
-    }
-    
-  }
+ 
+  
 
-  function getCount(graphId, newGraphSelection, relation) {
-    var queryTemplate = 'g.V($1).bothE("' + relation.id  + '").count()';
-    return f.executeGremlinQuery(graphId, queryTemplate, newGraphSelection)
-    .then(function (responses) {
-      // console.log(responses)
-      var count = responses.reduce(function (acc, val) { return acc + val; }, 0);
-      return {
-        id: relation.id,
-        label: relation.directLabel,
-        count: count,
-        rangeLabel: relation.range.label
-      };
-    })
-    .catch(f.notify.error);
-  }
 
   function beforeAll(graphId, graphModel, graphSelection) {
-    // return f.getKibiRelations()
-    // .then(function(relations){
-    //   console.log(relations)
-    // })
-    console.log(graphSelection)
+
     return f.getInvestigateEntities()
     .then(function (entities) {
       console.log(entities)
@@ -322,6 +315,7 @@
 
 
   function selectEntities(entityIdSet, newGraphSelection){
+    // This Function looks at the Graph Nodes Selected anddetermines the unique entity TYPES
     f.getKibiRelations()
       .then(function (relations) {
         
@@ -331,16 +325,10 @@
         var eidCounts = {};
         var nodeTypesSelected = new Set();
 
-       selectionNodes.forEach(function(ent){
-         console.log(ent)
-         console.log(ent["id"].substr(0, ent["id"].indexOf('/')))
-         console.log(ent["id"].substr(0,3))
+       selectionNodes.forEach(function(ent){ // GET ENTITY TYPES
           if (ent["id"].substr(0, ent["id"].indexOf('/')) !== "VIRTUAL_ENTITY") nodeTypesSelected.add(ent["id"].substr(0, ent["id"].indexOf('/')));
-         // if (ent.substr(0,4) === "eid:") eids++
         })
-        console.log(selectionNodes)
        
-        
         // Filter relations
         // this set is to avoid showing bidirectional relations, as they would have the same count
         var bidirectionalRelation = new Set();
@@ -348,66 +336,28 @@
 
           if (entityIdSet.has(relation.domain.id) && relation.range.type == "VIRTUAL_ENTITY")  {
                      
-
             //We count the amount of node relations that link to this eid, if = #nodes selected then it is common eid and can be used
             if (checkIfDomainNodeExists(relation.domain.id, selectionNodes)){
               if (!eidCounts[relation.range.label]) eidCounts[relation.range.label] = 0;
-              console.log(relation.range)
               eidCounts[relation.range.label]++;
             }
-            
-            
-            if (relation.directLabel === relation.inverseLabel
-              && !bidirectionalRelation.has(relation.directLabel)) {
-              
-              arrayOfPromises.push(getCount(graphId, newGraphSelection,  relation));
-              bidirectionalRelation.add(relation.directLabel);
-            } else if (relation.directLabel !== relation.inverseLabel) {
-             
-              arrayOfPromises.push(getCount(graphId, newGraphSelection,  relation));
-            }
+
           }
         });
-        console.log(eidCounts)
+      // HERE WE establish Common EIDS and keep a list of them
       Object.keys(eidCounts).forEach(function(selection){
         if (eidCounts[selection] === nodeTypesSelected.size){
           commonEIDs.push(selection)
         }
       })
-      
-      console.log(commonEIDs)
-        
-        return Promise.all(arrayOfPromises)
-        .then(function (arrayOfResults) {
-          
-      
-        
-          entities = _.sortBy(arrayOfResults, 'label');
+
+//We display a list of common EIDs to choose from, and our time and geo filters
           var html = '<div>';
           
             commonEIDs.forEach(function (element) {
-  
                 miniHtml += '<div class="grid-row"> <div class="flex-item">'+element+'</div><label class="flex-item"> <input type="radio" value="ignore" name="'+element+'" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="exact" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="fuzzy" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="mlt" name="'+element+'"> <span></span> </label> <label class="flex-item"> <div class="slider boost"><input class="inp" id="'+element+'Boost" type="number" value="1" min="1" max="5">'
-                // CODE FOR BOOST SLIDER
-                // <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div>'
-                  // slider.each(function(){
-                  //       value.each(function(){
-                  //         var value = $(this).prev().attr('value');
-                  //         $(this).html(value);
-                  //       });
-                    
-                  //       range.on('input', function(){
-                  //         $(this).next(value).html(this.value);
-                  //       });
-                  //     });
-                  
-                  miniHtml += '</div></label> </div>'
-                      
-                // html = html + '<input type="checkbox" ng-model=\'relations["' + element.id + '"]\'> '
-                //   + element.label + ' (' + element.count + ')'
-                //   + '<span style=\'font-size:0.8em;font-style: italic\'>' + element.rangeLabel + '</span>'
-
-              
+                miniHtml += '</div></label> </div>'
+    
             });
             
             // Html for Time, Geo, and # of Records
@@ -435,35 +385,22 @@
           // html = html + '</div>';
           html = miniHtml;
           f.openModal(graphId ,'Select the fields you want to base search on', html);
-          
 
-          return {
-            model: null,
-            selection: null
-          };
-        });//end Promise.all
       });
   }
 
   function readLimitResults(){
-  
-    //eids = [];
+    // read the number limiting the results
     var limitObject = {};
     limitObject["limitResults"] = $('#'+"limitResults").val()
     return limitObject;
-    //eidSelection["action"] = $("input[name='"+commonEIDs[i]+"']:checked").val()
-    //eids = limitObject
-  
-  //console.log(eids)
-  
+
 }
 
 function readUserInputTimeGeo(){
+  // read the input for geopoint and the search range
     var eids = [];
-    // eids["time"] = $('#time_select option:selected').text()
-    // eids["geo"] = $("#geo_select option:selected").text()
-    //console.log($('#time_select').val())
-    //console.log($("#geo_select").val())
+
     var timeObject = {}
     var geoObject = {}
     timeObject["dateDropdown"] = datelist[$('#time_select').val()]
@@ -480,11 +417,10 @@ function readUserInputTimeGeo(){
   }
 
 var selectionNodes = [];
-var datelist = []
-var geolist = []
+var datelist = [];
+var geolist = [];
 
 function readUserInputEID(){
-  
   eids = [];
   for (var i = 0; i < commonEIDs.length; i++) {
     var eidSelection = {}
@@ -494,11 +430,11 @@ function readUserInputEID(){
   }
   
   return eids;
-  
 }
 
   function getNodesSelection(graphSelection, graphModel) {
-    console.log(graphSelection)
+    // Here we examine the selected Nodes on the graph. We will also test for presence f geo fields, and time fields, and keep a list of both
+
     var selection = [];
     selectionNodes = []
     datelist = [];
@@ -526,16 +462,15 @@ function readUserInputEID(){
           selectionNodes.push(node);
         }
       });
-      console.log(datelist)
-      console.log(geolist)
+
     }
     
-    console.log(selection)
-
     return selection;
   }
 
   function checkForLatLon(objectToTest, type, label){
+    // For now we use a weak check on field names to see if we are dealing with lat lon
+    //need a more robust check that won't see numbers as lat/lon
     if (objectToTest["lat"] && objectToTest["lon"]){
        //set lat and lon
        var geoObject = {};
@@ -544,7 +479,6 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.lon
      geoObject["type"] = type
      geoObject["label"] = label
-     //console.log(geoObject)
      geolist.push(geoObject)
      }
      else if (objectToTest["lat"] && objectToTest["long"]){
@@ -555,7 +489,6 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.long
      geoObject["type"] = type
      geoObject["label"] = label
-     //console.log(geoObject)
      geolist.push(geoObject)
      }
      else if (objectToTest["lat"] && objectToTest["lng"]){
@@ -566,7 +499,6 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.lng
      geoObject["type"] = type
      geoObject["label"] = label
-     //console.log(geoObject)
      geolist.push(geoObject)
      }
      else if (objectToTest["latitude"] && objectToTest["longitude"]){
@@ -577,21 +509,10 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.longitude
      geoObject["type"] = type
      geoObject["label"] = label
-     //console.log(geoObject)
+
      geolist.push(geoObject)
      }
-     /*else if (objectToTest["x"] && objectToTest["y"]){
-       //set lat and lon
-       var geoObject = {};
-     
-     
-     geoObject["lat"] = objectToTest.x
-     geoObject["lon"] = objectToTest.y
-     geoObject["type"] = type
-     geoObject["label"] = label
-     console.log(geoObject)
-     geolist.push(geoObject)
-     }*/
+    
      findSubObjects(objectToTest, type, label)
   }
   
@@ -608,34 +529,26 @@ function readUserInputEID(){
   }
 
  function findGeoInNodeRecord(selectedNode){
-     console.log(selectedNode)
      if(checkForLatLon(selectedNode, selectedNode.type, selectedNode.label)){
        return 
      }
-     
-     //console.log(geoObject)
-     //return geoObject
     
  }
   
   function findDatesInNodeRecord(selectedNode){
     var objectToExamine = selectedNode.payload;
-    //var objectType = selectedNode.type
-    //console.log(selectedNode.label)
-    
     // search through payload for date field(s). If exists, create new object with properties"type", "label", and "date"
     for (var key in objectToExamine){
-      //console.log(objectToExamine[key])
-      //if(objectToExamine[key] instanceof Date){
+
       var dateString = (objectToExamine[key])
       var d = new Date(dateString)
       if ((dateString[4] === "-") && (dateString[7] === "-") && (Date.parse(d) > 0)){
-        //console.log(objectToExamine[key])
+
         var newObject = {};
         newObject["type"] = selectedNode.type
         newObject["label"] = selectedNode.label
         newObject["date"] = objectToExamine[key]
-        //console.log(newObject)
+
         return newObject
       }
    }
@@ -644,8 +557,6 @@ function readUserInputEID(){
   
 
   function onModalOk(scope, graphModel) {
-
-    constructCompoundQuery(readUserInputEID(), readUserInputTimeGeo(), readLimitResults());
 
     var selectedRel = [];
     for (var rel in scope.relations) {
@@ -667,154 +578,7 @@ function readUserInputEID(){
    * THEN WE BUILD EDGES FROM NODE TO NODE, WITH BLUE EDGES REPRESENTING FULL MATCH, AND PINK REPRESENTING 
    * INEXACT MATCHES.
    */
-  function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) {
-    
-    var selection = getNodesSelection(graphSelection, graphModel);
-    var queryTemplate;
-    
-    if (onOkModalResult && onOkModalResult.length) {
-      var rels = JSON.stringify(onOkModalResult);
-      var relList = rels.substring(1, rels.length - 1);
-      
-      
-      /***** Here we filter down to the selected entities in the modal. Because it only passes id, and we need to
-      ***** get all possible connections to entity by label */
-      var filteredEntityLabels = entityConnections.filter(function(connection){
-        return onOkModalResult.includes(connection.inverseOf);
-      });
-      
-      
-      var finalEntitiesToBeSearched = {};
-      /* Loop through all possible entity connections and check domain and range to see if VIRTUAL_ENTITY, and if label matches */
-      
-      filteredEntityLabels.forEach(function(desiredLabel){
-        entityConnections.forEach(function(entity){ // check 
-          if (desiredLabel.domain.label === entity.domain.label){// we have a match of entity identifiers attached to index
-              if(!finalEntitiesToBeSearched[entity.range.indexPattern]) finalEntitiesToBeSearched[entity.range.indexPattern] = [];
-              finalEntitiesToBeSearched[entity.range.indexPattern].push(entity);
-          } 
-        })
-      })
-      
-      var labelSwapPromises = [];
-    Object.keys(finalEntitiesToBeSearched).forEach(key=>{
-      finalEntitiesToBeSearched[key].forEach(function(entity){
-        var query = {};
-        query.query = {};
-        query.query.match = {};
-        query.query.match["_id"] = entity.range.indexPattern;
-        var lsPromise = new Promise(function(resolve, reject) {
-                resolve(queryLabelElasticSearch(".siren", query, graphModel));
-        });
-        labelSwapPromises.push(lsPromise)
-      })
-      
-    })
-    
-    return Promise.all(labelSwapPromises)
-    .then(function(results){
-      console.log(results)
-      results.forEach(function(result){
-        console.log(result.hits.hits[0]["_id"])
-        console.log(result.hits.hits[0]["_source"]["index-pattern"].title)
-        idxLabels[result.hits.hits[0]["_id"]] = result.hits.hits[0]["_source"]["index-pattern"].title;
-      })
-      console.log(idxLabels)
-      console.log(finalEntitiesToBeSearched)
-      var queries = generateESQueries(finalEntitiesToBeSearched)
-    var queryPromises = [];
-    
-    console.log(queries)
-    
-    Object.keys(queries).forEach(key=>{
-      console.log(key)
-      console.log(queries[key])
-        var elasticSearchPromise = new Promise(function(resolve, reject) {
-              resolve(queryElasticSearch(key, queries[key], graphModel));
-      });
-        queryPromises.push(elasticSearchPromise);
-    })
-      
-    return Promise.all(queryPromises)
-    .then(function(results){
-      console.log(results);
-      
-      var arrayofIDs = [];
-    
-      // /**************************
-      // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
-      // * *************************/
-      results.forEach(function(result){
-        result.hits.hits.forEach(function(res){
-          console.log(res)
-          var id = res._index + "/" + res._type + "/" + res._id;
-          arrayofIDs.push(id)
-      })
-      })
-      
-      /*************** PLACE ALL ON GRAPH***************/
-      var query = 'g.V($1)';
-      queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
-      
-    
-      console.log(arrayofIDs)
-      return Promise.all([
-        entityResToGraph(arrayofIDs, graphId, query),
-        entityResToGraph(selection, graphId, queryTemplate)
-      ])
-      .then(function ([res1, res2]) {
-        
-        console.log(res1)
-        console.log(res2)
-        var edges = []
-        var response = res1.concat(res2);
-        
-        var virtualEntities = res2.filter(function(entity){
-          return entity.id.includes("VIRTUAL_ENTITY")
-        })
-        
-        var addedEdges = createEdges(res1, virtualEntities)
-        
-        response.forEach(function(linkNode){
-                /*************************
-              * For each result, build Links to Origin Node - Not Using this now, but will be
-              * *********************/
-              var linkPair = {
-                    in: selectedNode.id,
-                    out: linkNode.id
-                };
-                var nodeState = {
-                    label: "is like ",
-                    size: 5,
-                    color: '#'+Math.floor(Math.random()*16777215).toString(16)
-                  };
-                  
-              /*For Now we are creating links to Entity Identifiers*/
-              var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
-              edges.push(edge);
-              
-        })
-        
-        response = response.concat(addedEdges)
-        
-        return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), response)
-        .then(function(res){
-          console.log(res)
-        })
-        
-      })
-      
-    })
-    .catch(function(error){
-      console.log(error)
-    })
-    })
-      
-    
-    }
-      
-  }
-
+ 
   function createEdges(nodes, virtualEntities){
     var edges = [];
     
@@ -871,13 +635,28 @@ function readUserInputEID(){
       });
   }
   var ESresultIndex = {};
+  
+  function extractIDs(hits){
+    console.log(hits)
+    var ids = [];
+    for (var id in hits){
+      var res = hits[id];
+          var id = res._index + "/" + res._type + "/" + res._id;
+      ids.push(id)
+    }
+    console.log(ids)
+    return ids;
+  }
 
   function queryElasticSearch(index, query, graphModel){
       // for each index
       console.log("exec: ")
       console.log(query)
-      return f.executeEsSearch(idxLabels[index], "", query, 5)
+      console.log(index)
+      return f.executeEsSearch(index, "", query, 5)
       .then(function (searchResults){
+        // console.log(searchResults)
+        // sendToGraph(graphModel, extractIDs(searchResults.hits.hits))
           return Promise.resolve(searchResults);
       });
   }
@@ -934,44 +713,181 @@ function readUserInputEID(){
     return esQueries;
   }
 
-  // {
-  //   "query":{
-  //     "bool":{"must":[{"fuzzy":{"about":{"value":"","boost":1,"fuzziness":2}}}]}}}
+  
+ function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) {
+    
+    var selection = getNodesSelection(graphSelection, graphModel);
+    var queryTemplate;
+    console.log(onOkModalResult)
 
-  // {
-  //   "query" : {
-  //     "bool" : {
-  //       "must" : [
-  //         {
-  //           "match" : {
-  //             "text" : {
-  //               "query" : "",
-  //               "operator" : "OR",
-  //               "fuzziness" : "AUTO",
-  //               "prefix_length" : 0,
-  //               "max_expansions" : 50,
-  //               "fuzzy_transpositions" : true,
-  //               "lenient" : true,
-  //               "zero_terms_query" : "ALL",
-  //               "boost" : 1.0
-  //             }
-  //           }
-  //         }
-  //       ],
-  //       "adjust_pure_negative" : true,
-  //       "boost" : 1.0
-  //     }
-  //   }
-  // }
+     var constructQuery = new Promise(function(resolve, reject) {
+              resolve(findCommonIndicesToSearch(graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults()));
+     });
+    
+
+queryPromises = [];
+
+return constructQuery.then(function(results){
+      console.log(results)
+    
+   for(query in results){
+        var elasticSearchPromise = new Promise(function(resolve, reject) {
+              resolve(queryElasticSearch(results[query].index, results[query].query, graphModel));
+      });
+        queryPromises.push(elasticSearchPromise);
+    }
+      
+    return Promise.all(queryPromises)
+    .then(function(results){
+      console.log(results);
+      
+      var arrayofIDs = [];
+    
+      // /**************************
+      // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
+      // * *************************/
+      results.forEach(function(result){
+        result.hits.hits.forEach(function(res){
+          console.log(res)
+          var id = res._index + "/" + res._type + "/" + res._id;
+          arrayofIDs.push(id)
+      })
+      })
+      
+      /*************** PLACE ALL ON GRAPH***************/
+      var query = 'g.V($1)';
+      // queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
+      
+    
+      console.log(arrayofIDs)
+      return Promise.all([
+        entityResToGraph(arrayofIDs, graphId, query)
+        // ,
+        // entityResToGraph(selection, graphId, queryTemplate)
+      ])
+      .then(function ([res1]) {
+        
+        console.log(res1)
+        // console.log(res2)
+        var edges = []
+        var response = res1; // .concat(res2);
+        
+        // var virtualEntities = res2.filter(function(entity){
+        //   return entity.id.includes("VIRTUAL_ENTITY")
+        // })
+        
+        // var addedEdges = createEdges(res1, virtualEntities)
+        
+        response.forEach(function(linkNode){
+                /*************************
+              * For each result, build Links to Origin Node - Not Using this now, but will be
+              * *********************/
+              var linkPair = {
+                    in: selectedNode.id,
+                    out: linkNode.id
+                };
+                var nodeState = {
+                    label: "is like ",
+                    size: 5,
+                    color: '#'+Math.floor(Math.random()*16777215).toString(16)
+                  };
+                  
+              /*For Now we are creating links to Entity Identifiers*/
+              var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
+              edges.push(edge);
+              
+        })
+        
+        // response = response.concat(addedEdges)
+        
+        return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), response)
+        .then(function(res){
+          console.log(res)
+        })
+        
+      })
+      
+    })
+    .catch(function(error){
+      console.log(error)
+    })
+    
+    })
+    .catch(function(error){
+      console.log(error)
+    })
+   
+      
+    
+    
+      
+  }
+
+
+  function graph(graphId, graphModel, graphSelection, onOkModalResult) {
+    console.log("modal closed")
+  
+  constructCompoundQuery(graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults());
+      // /**************************
+      // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
+      // * *************************/
+    
+      /*************** PLACE ALL ON GRAPH***************/
+      var query = 'g.V($1)';
+      queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
+      
+    
+      return Promise.all([
+        entityResToGraph(arrayofIDs, graphId, query),
+        entityResToGraph(selection, graphId, queryTemplate)
+      ])
+      .then(function ([res1, res2]) {
+        
+      
+        var edges = []
+        var response = res1.concat(res2);
+        
+        var virtualEntities = res2.filter(function(entity){
+          return entity.id.includes("VIRTUAL_ENTITY")
+        })
+        
+        var addedEdges = createEdges(res1, virtualEntities)
+        
+        response.forEach(function(linkNode){
+                /*************************
+              * For each result, build Links to Origin Node - Not Using this now, but will be
+              * *********************/
+              var linkPair = {
+                    in: selectedNode.id,
+                    out: linkNode.id
+                };
+                var nodeState = {
+                    label: "is like ",
+                    size: 5,
+                    color: '#'+Math.floor(Math.random()*16777215).toString(16)
+                  };
+                  
+              /*For Now we are creating links to Entity Identifiers*/
+              var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
+              edges.push(edge);
+              
+        })
+        
+        response = response.concat(addedEdges)
+        
+        return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), response)
+        .then(function(res){
+          console.log(res)
+        })
+        
+      })
+      
+  }
 
 
 
 
-
-
-
-
-
+var idsToBeAdded = [];
 
   /************************************************
   **********************************************
@@ -983,12 +899,16 @@ function readUserInputEID(){
     /*****************
           * Get Graph Nodes
           * ***/
+          console.log(graphId)
+          console.log(graphModel)
           console.log(arrayOfIDs)
           var queryList = 'g.V($1)';
+          
+          idsToBeAdded = arrayOfIDs
         
             return f.executeGremlinQueryAndParse(graphId, queryList, arrayOfIDs)
             .then(function(response){
-                                console.log(response)
+                                console.log(idsToBeAdded)
                                 console.log(selectedNode)
               response.forEach(function(linkNode){
                 /*************************
@@ -1013,12 +933,12 @@ function readUserInputEID(){
               graphModel.nodes = graphModel.nodes.concat(response);
               console.log(graphModel)
               
-              return {
-                model: graphModel,
-                relayout: true
-              }
+              return f.addResultsToGraph(graphId, idsToBeAdded, graphModel.nodes)
+        .then(function(res){
+          console.log(res)
+        })
               
-            })
+        })
   }
 
   /**********************

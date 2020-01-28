@@ -143,7 +143,7 @@
     // return JSON.stringify(query);
   }
   
-  function findCommonIndicesToSearch(graphModel, eids, selectedNodes, limitResults){
+  function findCommonIndicesToSearch(selectedNodes, graphModel, eids, timGeoQuery, limitResults){
     var eidRelationSets = {};
      return f.getKibiRelations()
       .then(function (relations) {
@@ -721,8 +721,8 @@ function readUserInputEID(){
     console.log(onOkModalResult)
 
      var constructQuery = new Promise(function(resolve, reject) {
-              resolve(findCommonIndicesToSearch(graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults()));
-     });
+      resolve(findCommonIndicesToSearch(selectionNodes, graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults()));
+   });
     
 
 queryPromises = [];
@@ -817,10 +817,6 @@ return constructQuery.then(function(results){
       console.log(error)
     })
    
-      
-    
-    
-      
   }
 
 

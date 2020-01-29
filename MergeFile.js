@@ -142,6 +142,18 @@
     // console.log(JSON.stringify(query));
     // return JSON.stringify(query);
   }
+  function getDateBefore(date, range){
+    var d = new Date(date);
+    d.setDate(d.getDate()+(range/2))
+    return new Date(d).toISOString().slice(0, 10);
+   
+  }
+  function getDateAfter(date, range){
+    var d = new Date(date);
+    d.setDate(d.getDate()-(range/2));
+    return new Date(d).toISOString().slice(0, 10);
+   
+  }
   
   function findCommonIndicesToSearch(selectedNodes, graphModel, eids, timGeoQuery, limitResults){
     var eidRelationSets = {};
@@ -215,6 +227,26 @@
       query.query.bool.should = [];
       console.log(queries);
       console.log(fieldList)
+      
+        if (datelist.length > 0){
+        // We will see if any selected nodes have a date field, and if user has decided within a range of dates
+         for(date in datelist){
+            var datequery = {};
+            datequery.query = {};
+            // datequery.query.bool = {}
+            // datequery.query.bool.should = [];
+           
+            datequery.query = constructTimeRangeQuery(datelist[date].field, getDateBefore(datelist[date].date, 100), getDateAfter(datelist[date].date, 100) );
+            console.log(JSON.stringify(datequery))
+            var esDateQuery = {};
+            esDateQuery.index = datelist[date].indexPattern.substr(datelist[date].indexPattern.indexOf(":")+1);
+            esDateQuery.query =datequery;
+            console.log(esDateQuery)
+            esQueries.push(esDateQuery)
+          }
+         
+      }
+     
       for (var quer in fieldList){
         // we iterate through index pattern list. If number of fields matches number of level 1 query types, then we continue, as this proves common connectivity
         console.log(fieldList[quer])
@@ -239,11 +271,12 @@
               query.query.bool.should.push(constructExactQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
             }
           }
-        }
-        var esQuery = {};
+          var esQuery = {};
         esQuery.index = quer.substr(quer.indexOf(":")+1);
         esQuery.query = query;
          esQueries.push(esQuery)
+        }
+        
        // queryElasticSearch(quer.substr(quer.indexOf(":")+1), query, graphModel)
       }
             return Promise.resolve(esQueries)
@@ -251,9 +284,6 @@
       
   }
   
- 
-  
-
 
   function beforeAll(graphId, graphModel, graphSelection) {
 
@@ -462,13 +492,15 @@ function readUserInputEID(){
           selectionNodes.push(node);
         }
       });
+      console.log(datelist)
+      console.log(geolist)
 
     }
     
     return selection;
   }
 
-  function checkForLatLon(objectToTest, type, label){
+  function checkForLatLon(objectToTest, type, label, indexPattern){
     // For now we use a weak check on field names to see if we are dealing with lat lon
     //need a more robust check that won't see numbers as lat/lon
     if (objectToTest["lat"] && objectToTest["lon"]){
@@ -479,6 +511,7 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.lon
      geoObject["type"] = type
      geoObject["label"] = label
+     geoObject["indexPattern"] = indexPattern
      geolist.push(geoObject)
      }
      else if (objectToTest["lat"] && objectToTest["long"]){
@@ -489,6 +522,8 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.long
      geoObject["type"] = type
      geoObject["label"] = label
+          geoObject["indexPattern"] = indexPattern
+
      geolist.push(geoObject)
      }
      else if (objectToTest["lat"] && objectToTest["lng"]){
@@ -499,6 +534,8 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.lng
      geoObject["type"] = type
      geoObject["label"] = label
+          geoObject["indexPattern"] = indexPattern
+
      geolist.push(geoObject)
      }
      else if (objectToTest["latitude"] && objectToTest["longitude"]){
@@ -509,32 +546,70 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.longitude
      geoObject["type"] = type
      geoObject["label"] = label
+          geoObject["indexPattern"] = indexPattern
+
 
      geolist.push(geoObject)
      }
     
-     findSubObjects(objectToTest, type, label)
+     findSubObjects(objectToTest, type, label, indexPattern)
   }
   
-  function findSubObjects(objectToTest,type,label){
+  function findSubObjects(objectToTest,type,label, indexPattern){
        //recusively search within each object branch to see if a geopoint exists
        
        for (var key in objectToTest){
          //test to see if property is object, if so, test for lat lon
         if (objectToTest[key] instanceof Object){
-           checkForLatLon(objectToTest[key], type, label)
+           checkForLatLon(objectToTest[key], type, label, indexPattern)
            
         }
        }
   }
 
  function findGeoInNodeRecord(selectedNode){
-     if(checkForLatLon(selectedNode, selectedNode.type, selectedNode.label)){
-       return 
-     }
-    
+    // if(checkForLatLon(selectedNode, selectedNode.type, selectedNode.label, selectedNode.indexPattern, "root")){
+       if(findGeoStringInPayload(selectedNode)) return     
  }
   
+  function findGeoStringInPayload(selectedNode){
+    // Whereas the above trio of functions will recursively search nested objects and test for lat/lon object property pairs
+    // This will simply search ONE tier of selected node payload looking for geo location object
+    console.log(selectedNode)
+    for (loc in selectedNode.payload){
+      console.log(selectedNode.payload[loc])
+      // try {
+        console.log(selectedNode.payload)
+        // var objectToTest = JSON.parse(selctedNode.payload[loc])
+        // if string can convert to json, then test for lat lon
+        //set lat and lon
+        // if (objectToTest["lat"] && objectToTest["lon"]){
+        //   var geoObject = {};
+     
+        //   geoObject["lat"] = objectToTest.lat
+        //   geoObject["lon"] = objectToTest.lon
+        //   geoObject["type"] = selectedNode.type
+        //   geoObject["label"] = selectedNode.label
+        //   geoObject["field"] = loc
+        //   geoObject["indexPattern"] = selectedNode.indexPattern
+        //   geolist.push(geoObject)
+        // }
+        if (loc == "location"){
+           console.log(selectedNode.payload["location"])
+           var geoObject = {};
+          geoObject["location"] = selectedNode.payload["location"]
+          geoObject["type"] = selectedNode.type
+           geoObject["label"] = selectedNode.label
+           geoObject["field"] = loc
+          geoObject["indexPattern"] = selectedNode.indexPattern
+                    geolist.push(geoObject)
+
+        }
+       
+      // }
+      // catch(error){}
+    }
+  }
   function findDatesInNodeRecord(selectedNode){
     var objectToExamine = selectedNode.payload;
     // search through payload for date field(s). If exists, create new object with properties"type", "label", and "date"
@@ -543,11 +618,15 @@ function readUserInputEID(){
       var dateString = (objectToExamine[key])
       var d = new Date(dateString)
       if ((dateString[4] === "-") && (dateString[7] === "-") && (Date.parse(d) > 0)){
+        console.log(selectedNode)
+        console.log(key)
 
         var newObject = {};
-        newObject["type"] = selectedNode.type
-        newObject["label"] = selectedNode.label
-        newObject["date"] = objectToExamine[key]
+        newObject["type"] = selectedNode.type;
+        newObject["label"] = selectedNode.label;
+        newObject["date"] = objectToExamine[key];
+        newObject["indexPattern"] = selectedNode.indexPattern;
+        newObject["field"] = key;
 
         return newObject
       }
@@ -661,57 +740,7 @@ function readUserInputEID(){
       });
   }
 
-  function generateESQueries(entitiesGrouped){
-    var esQueries = {};
-    
-    Object.keys(entitiesGrouped).forEach(key=>{
-      entitiesGrouped[key].forEach(function(entity){
-      console.log(entity)
-      entity.range.field = entity.range.field.replace('.keyword','');
-      if (queryText == undefined) queryText = lookup[entity.range.field];
-      console.log(queryText)
-      });
-    });
-    console.log(queryText);    
-    Object.keys(entitiesGrouped).forEach(key=>{
-      console.log(entitiesGrouped[key])
-      var dynamicQuery = {};
-      dynamicQuery.query = {};
-      dynamicQuery.query.bool = {};
-      dynamicQuery.query.bool.must = [];
-      //dynamicQuery.query.bool.must.match = {};
-      
-      
-      
-      
-      entitiesGrouped[key].forEach(function(entity){
-        entity.range.field = entity.range.field.replace('.keyword','');
-        console.log(queryText)
-        // add keys to a list so we know what fields we are searching and have a ref to them globally
-        fields[lookup[entity.range.field]] = entity.range.field;
-        var fuzzy = {};
-        fuzzy.match = {};
-        fuzzy.match[entity.range.field] = {};
-        fuzzy.match[entity.range.field].query = queryText;
-        fuzzy.match[entity.range.field].boost = 1;
-        fuzzy.match[entity.range.field].fuzziness = "AUTO";
-        fuzzy.match[entity.range.field].operator = "OR";
-        fuzzy.match[entity.range.field].prefix_length = 0;
-        fuzzy.match[entity.range.field].max_expansions = 50;
-        fuzzy.match[entity.range.field].fuzzy_transpositions = true;
-        fuzzy.match[entity.range.field].lenient = true;
-        fuzzy.match[entity.range.field].zero_terms_query = "ALL";
-        
-        dynamicQuery.query.bool.must.push(fuzzy);
-      })
-      console.log("ES query: ");
-      console.log(JSON.stringify(dynamicQuery));
-      esQueries[key] = dynamicQuery;
-    });
-    
-    // Returns queries in an object where key is the label of index to be searched
-    return esQueries;
-  }
+
 
   
  function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) {
@@ -885,57 +914,7 @@ return constructQuery.then(function(results){
 
 var idsToBeAdded = [];
 
-  /************************************************
-  **********************************************
-  ***** CURRENTLY UNUSED BUT COULD BE USEFUL LATER 
-  * *******************************************
-  * *********************************************/
 
-  function sendToGraph (graphModel, arrayOfIDs){
-    /*****************
-          * Get Graph Nodes
-          * ***/
-          console.log(graphId)
-          console.log(graphModel)
-          console.log(arrayOfIDs)
-          var queryList = 'g.V($1)';
-          
-          idsToBeAdded = arrayOfIDs
-        
-            return f.executeGremlinQueryAndParse(graphId, queryList, arrayOfIDs)
-            .then(function(response){
-                                console.log(idsToBeAdded)
-                                console.log(selectedNode)
-              response.forEach(function(linkNode){
-                /*************************
-              * For each result, build Links to Origin Node
-              * *********************/
-              var linkPair = {
-                    in: selectedNode.id,
-                    out: linkNode.id
-                };
-                var nodeState = {
-                    label: "is like ",
-                    size: 5,
-                    color: '#'+Math.floor(Math.random()*16777215).toString(16)
-                  };
-                  
-              var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
-              
-              graphModel.relations.push(edge);
-              
-
-              })
-              graphModel.nodes = graphModel.nodes.concat(response);
-              console.log(graphModel)
-              
-              return f.addResultsToGraph(graphId, idsToBeAdded, graphModel.nodes)
-        .then(function(res){
-          console.log(res)
-        })
-              
-        })
-  }
 
   /**********************
   * Having our center node, and our related nodes, we must then retrieve our Links/Edges

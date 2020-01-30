@@ -57,7 +57,6 @@
     fuzzy.match[matchOnField].lenient = true;
     fuzzy.match[matchOnField].zero_terms_query = "ALL";
 
-
     return fuzzy;
   }
   
@@ -67,7 +66,6 @@
     exact.match[matchOnField] = {};
     exact.match[matchOnField].query = queryText;
     exact.match[matchOnField].boost = 1;
-
 
     return exact;
   }
@@ -393,21 +391,22 @@
             // Html for Time, Geo, and # of Records
             // Time Field - Check if we have time records, if so, add to dropdown list
             if(datelist.length>0){
-                miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="time" name="time"> <span>Time Filter</span> </label> </div><div class="slider time"> <div class="time dropdown" style="float: left;">'
-                miniHtml += '<select id = "time_select"> <option value="" selected disabled hidden>Choose here</option>'
-                for (date in datelist){ 
-                 miniHtml += '<option value="'+date +'">'+ datelist[date].type  +'  -  '+ datelist[date].label  +'  -   '+ datelist[date].date  +'</option>'
-               }
-               miniHtml += '</select> </div><div class="range-slider"> <input class="time_days inp" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">days</div><input class="inp time_months" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">mths</div><input class="inp time_years" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">yrs</div></div></div></div>'
+                miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="time" name="time"> <span>Time Filter</span> </label> </div>'
+                miniHtml += '<div class="slider time"> <div class="time dropdown" style="float: left;">'
+                // miniHtml += '<select id = "time_select"> <option value="" selected disabled hidden>Choose here</option>'
+                // for (date in datelist){ 
+                // miniHtml += '<option value="'+date +'">'+ datelist[date].type  +'  -  '+ datelist[date].label  +'  -   '+ datelist[date].date  +'</option>'
+              // }
+               miniHtml += '</select> </div><div class="range-slider"> <input style="width: 50px; margin-right:10px;" type="number" name="other"><select name="example"><option value="A">A</option><option value="B">A</option><option value="-">Other</option></select></div></div></div>'
               }
               
-              if(geolist.length>0){
-               miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="geo" name="geo"> <span>Geo Filter</span> </label> </div><div class="slider geo" style="float: left;"> <div class="geo dropdown" style="float: left;">'
-               miniHtml += '<select id="geo_select"> <option value="" selected disabled hidden>Choose here</option>' 
-               for (geo in geolist){
-                miniHtml += '<option value="'+geo +'">'+ geolist[geo].type  +'  -  '+ geolist[geo].label  +'  -   '+ geolist[geo].lat  +' -   '+ geolist[geo].lon  +'</option>' 
-               }
-               miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
+              if(geolist.length>100){ // large number to hide div for now
+              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="geo" name="geo"> <span>Geo Filter</span> </label> </div><div class="slider geo" style="float: left;"> <div class="geo dropdown" style="float: left;">'
+              // miniHtml += '<select id="geo_select"> <option value="" selected disabled hidden>Choose here</option>' 
+              // for (geo in geolist){
+              //   miniHtml += '<option value="'+geo +'">'+ geolist[geo].type  +'  -  '+ geolist[geo].label  +'  -   '+ geolist[geo].lat  +' -   '+ geolist[geo].lon  +'</option>' 
+              // }
+              miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
               }
               miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <input id="limitResults" type="number" value="1" min="1" max="50"></div></div> </div></div></fieldset>';
                       
@@ -658,43 +657,34 @@ function readUserInputEID(){
    * INEXACT MATCHES.
    */
  
-  function createEdges(nodes, virtualEntities){
+  function createEdges(nodes, newNodes){
     var edges = [];
     
-    virtualEntities.forEach(function(virt){
+    newNodes.forEach(function(virt){
       console.log(virt)
       
-      virt_id_f = virt.id.replace("VIRTUAL_ENTITY/", "")
-      virt_id = virt_id_f.substr(0, virt_id_f.indexOf("/"));
-      ei_name = virt_id_f.substr(virt_id_f.indexOf("/")+1).replace("+", " ");
-      console.log(ei_name)
+      
   
     nodes.forEach(function(node){
-      console.log(node)
-      console.log(fields[ei_name])
-      console.log(node.properties[fields[ei_name]][0].value)
+     
       var manual = {};
         manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
         manual.properties = {}
-        manual.inV = virt.id
-        manual.inVLabel = node.properties[fields[ei_name]][0].value
-        manual.label = node.properties[fields[ei_name]][0].value
+        manual.inV = virt
+        manual.inVLabel ="test"
+        manual.label = "test"
         manual.w = 1
         manual.outV = node.id
-        manual.outVLabel = node.properties[fields[ei_name]][0].value
+        manual.outVLabel = "test"
         manual.type = "edge";
         manual.c = 'rgb(255,153,255)'
         
         /* We check if our node is an exact match with the selected node, if it is, we don't add it to the graph
         /* as it will already be added 
         */
-        var pushable = true;
-        console.log(fields)
-        
-          if (node.properties[fields[ei_name]][0].value != lookup[fields[ei_name]]){
-            console.log(manual)
+      
             edges.push(manual)
-          } 
+
           
         })
     })
@@ -797,37 +787,15 @@ return constructQuery.then(function(results){
       .then(function ([res1]) {
         
         console.log(res1)
-        // console.log(res2)
+        console.log(graphSelection)
+        console.log(graphModel)
         var edges = []
         var response = res1; // .concat(res2);
         
-        // var virtualEntities = res2.filter(function(entity){
-        //   return entity.id.includes("VIRTUAL_ENTITY")
-        // })
         
-        // var addedEdges = createEdges(res1, virtualEntities)
+        var addedEdges = createEdges(res1, graphSelection)
         
-        response.forEach(function(linkNode){
-                /*************************
-              * For each result, build Links to Origin Node - Not Using this now, but will be
-              * *********************/
-              var linkPair = {
-                    in: selectedNode.id,
-                    out: linkNode.id
-                };
-                var nodeState = {
-                    label: "is like ",
-                    size: 5,
-                    color: '#'+Math.floor(Math.random()*16777215).toString(16)
-                  };
-                  
-              /*For Now we are creating links to Entity Identifiers*/
-              var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
-              edges.push(edge);
-              
-        })
-        
-        // response = response.concat(addedEdges)
+        response = response.concat(addedEdges)
         
         return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), response)
         .then(function(res){
@@ -848,91 +816,5 @@ return constructQuery.then(function(results){
    
   }
 
-
-  function graph(graphId, graphModel, graphSelection, onOkModalResult) {
-    console.log("modal closed")
-  
-  constructCompoundQuery(graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults());
-      // /**************************
-      // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
-      // * *************************/
-    
-      /*************** PLACE ALL ON GRAPH***************/
-      var query = 'g.V($1)';
-      queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
-      
-    
-      return Promise.all([
-        entityResToGraph(arrayofIDs, graphId, query),
-        entityResToGraph(selection, graphId, queryTemplate)
-      ])
-      .then(function ([res1, res2]) {
-        
-      
-        var edges = []
-        var response = res1.concat(res2);
-        
-        var virtualEntities = res2.filter(function(entity){
-          return entity.id.includes("VIRTUAL_ENTITY")
-        })
-        
-        var addedEdges = createEdges(res1, virtualEntities)
-        
-        response.forEach(function(linkNode){
-                /*************************
-              * For each result, build Links to Origin Node - Not Using this now, but will be
-              * *********************/
-              var linkPair = {
-                    in: selectedNode.id,
-                    out: linkNode.id
-                };
-                var nodeState = {
-                    label: "is like ",
-                    size: 5,
-                    color: '#'+Math.floor(Math.random()*16777215).toString(16)
-                  };
-                  
-              /*For Now we are creating links to Entity Identifiers*/
-              var edge = createScriptedLink(linkPair, nodeState, linkNode.id, "out");
-              edges.push(edge);
-              
-        })
-        
-        response = response.concat(addedEdges)
-        
-        return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), response)
-        .then(function(res){
-          console.log(res)
-        })
-        
-      })
-      
-  }
-
-
-
-
 var idsToBeAdded = [];
 
-
-
-  /**********************
-  * Having our center node, and our related nodes, we must then retrieve our Links/Edges
-  * *******************/
-  function createScriptedLink(linkPair, nodeState, nodeId, direction) {
-    var newLink = {
-      id: hashCode(linkPair.in + linkPair.out + nodeId),
-      direction: direction,
-      in: linkPair.in,
-      out: linkPair.out,
-      volatile: true
-    };
-    _.each(nodeState, function (value, key) {
-      newLink[key] = value;
-    });
-    return newLink;
-  }
-
-  function hashCode(s){
-    return 'ASSOCIATED_EDGE-'+ s.split('').reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
-  }

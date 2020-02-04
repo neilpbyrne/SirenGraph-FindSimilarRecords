@@ -87,7 +87,7 @@
   }
 
   function constructGeoProximityQuery(point, distance, field){
-    console.log(point)
+    // console.log(point)
     //var pointObj = JSON.parse(point);
     // console.log(pointObj)
     var geoprox = {};
@@ -100,7 +100,7 @@
     geoprox.bool.filter.geo_distance.distance = distance;
     geoprox.bool.filter.geo_distance[field] = point;
   
-    console.log(JSON.stringify(geoprox))
+    // console.log(JSON.stringify(geoprox))
   
     return geoprox;
   }
@@ -114,55 +114,21 @@
     if (dateBefore) rangeQuery.range[field].lte = dateBefore;
     rangeQuery.range[field].format = "yyyy-MM-dd";
   
-    console.log(JSON.stringify(rangeQuery))
+    // console.log(JSON.stringify(rangeQuery))
   
     return rangeQuery;
   }
-
-  function constructCompoundQuery(graphModel, eids, timeGeoQuery, limitResults){
-    console.log(timeGeoQuery)
-    console.log(limitResults)
-    
-    
-    findCommonIndicesToSearch(selectionNodes, eids, graphModel);
-
-
-    // if (timeGeoQuery.time.dateDropdown) query.query.bool.must.push(constructTimeRangeQuery("founded_date", "2090-01-01", "2000-01-01"))
-    // if (timeGeoQuery.geo.geoDropdown) query.query.bool.must.push(constructGeoProximityQuery({"lon":"-96.20", "lat":"44.20"}, "800km", "location"))
-
-    for(eid in eids){
-      console.log(eids[eid])
-      // if (eids[eid].action ==="mlt") 
-      // else if (eids[eid].action === "fuzzy") query.query.bool.must.push(constructFuzzyQuery("creative communications and production", "overview"))
-      // else if (eid.match) query.query.bool.must.push(constructMatchQuery())
-    }
-
-    // console.log(JSON.stringify(query));
-    // return JSON.stringify(query);
-  }
-  function getDateBefore(date, range){
-    var d = new Date(date);
-    d.setDate(d.getDate()+(range/2))
-    return new Date(d).toISOString().slice(0, 10);
-   
-  }
-  function getDateAfter(date, range){
-    var d = new Date(date);
-    d.setDate(d.getDate()-(range/2));
-    return new Date(d).toISOString().slice(0, 10);
-   
-  }
   
-  function findCommonIndicesToSearch(selectedNodes, graphModel, eids, timGeoQuery, limitResults){
+  function findCommonIndicesToSearch(selectedNodes, graphModel, eids, timeGeoQuery, limitResults){
     var eidRelationSets = {};
      return f.getKibiRelations()
       .then(function (relations) {
-        console.log(relations)
+        // console.log(relations)
         for (relation in relations){
-          console.log(relations[relation].domain.id.substr(0,4))
+          // console.log(relations[relation].domain.id.substr(0,4))
           if (relations[relation].domain.id.substr(0,4) === "eid:"){ // This finds the indices eids are connected to (<-), and the fields in them that we will search
             var eidName = relations[relation].domain.label;
-            console.log(eidName)
+            // console.log(eidName)
             if (!eidRelationSets[eidName]) {eidRelationSets[eidName] = [];}
             var indexPatternAndField = {};
             indexPatternAndField["indexPattern"] = relations[relation].range.indexPattern;
@@ -171,9 +137,9 @@
           }
           
         }
-        console.log(eidRelationSets) // Level 2 search
-        console.log(eids) // Level 1 search
-        console.log(selectedNodes) // Level3 search
+        // console.log(eidRelationSets) // Level 2 search
+        // console.log(eids) // Level 1 search
+        // console.log(selectedNodes) // Level3 search
         
         var targetIndices = [];
         
@@ -223,23 +189,32 @@
       query.query = {};
       query.query.bool = {}
       query.query.bool.should = [];
-      console.log(queries);
-      console.log(fieldList)
+     
       
-        if (datelist.length > 0){
+        if ((datelist.length > 0) && (timeGeoQuery)){
+          console.log("here")
         // We will see if any selected nodes have a date field, and if user has decided within a range of dates
          for(date in datelist){
             var datequery = {};
             datequery.query = {};
             // datequery.query.bool = {}
             // datequery.query.bool.should = [];
+            console.log(timeGeoQuery)
+            
+            // Here we should convert Date to ms, and user range input to ms
+            var baseDate = convertFromISOtoMS(datelist[date].date);
+            var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
+            var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
+            var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
+            console.log(gte, lte,  datelist[date].date)
            
-            datequery.query = constructTimeRangeQuery(datelist[date].field, getDateBefore(datelist[date].date, 100), getDateAfter(datelist[date].date, 100) );
+            datequery.query = constructTimeRangeQuery(datelist[date].field, lte, gte);
             console.log(JSON.stringify(datequery))
             var esDateQuery = {};
             esDateQuery.index = datelist[date].indexPattern.substr(datelist[date].indexPattern.indexOf(":")+1);
             esDateQuery.query =datequery;
             console.log(esDateQuery)
+            esDateQuery.queryType = "time";
             esQueries.push(esDateQuery)
           }
          
@@ -247,15 +222,15 @@
      
       for (var quer in fieldList){
         // we iterate through index pattern list. If number of fields matches number of level 1 query types, then we continue, as this proves common connectivity
-        console.log(fieldList[quer])
-        console.log(quer)
+        // console.log(fieldList[quer])
+        // console.log(quer)
         if (fieldList[quer].length === queries.length){
           // this is good to search, construct query. Loop through query terms
           for (var queryBlock in queries){
-            console.log(queries[queryBlock])
+            // console.log(queries[queryBlock])
             if (queries[queryBlock].type === "mlt"){
-              console.log(fieldList[quer][queryBlock])
-              console.log(queries[queryBlock].queryTerm)
+              // console.log(fieldList[quer][queryBlock])
+              // console.log(queries[queryBlock].queryTerm)
               query.query.bool.should.push(constructMoreLikeThisQuery(fieldList[quer][queryBlock], queries[queryBlock].queryTerm));
               
             }
@@ -264,22 +239,59 @@
 
             }
             else if (queries[queryBlock].type === "exact"){
-               console.log(fieldList[quer][queryBlock])
-              console.log(queries[queryBlock].queryTerm)
+              // console.log(fieldList[quer][queryBlock])
+              // console.log(queries[queryBlock].queryTerm)
               query.query.bool.should.push(constructExactQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
             }
           }
+          
           var esQuery = {};
-        esQuery.index = quer.substr(quer.indexOf(":")+1);
-        esQuery.query = query;
-         esQueries.push(esQuery)
+          esQuery.index = quer.substr(quer.indexOf(":")+1);
+          esQuery.query = query;
+          esQuery.queryType = "eid";
+          esQueries.push(esQuery)
         }
         
        // queryElasticSearch(quer.substr(quer.indexOf(":")+1), query, graphModel)
       }
+      console.log(esQueries)
             return Promise.resolve(esQueries)
       });
       
+  }
+  function convertFromISOtoMS(date){
+      var date = new Date(date); 
+      var milliseconds = date.getTime() / 1000; 
+      console.log(milliseconds)
+      return milliseconds
+  }
+  function convertUnitsToMS(amount, units){
+    console.log(amount)
+    console.log(units)
+    var ms = 0;
+    if (units == "years"){
+      ms = amount * 365 * 24 * 60 * 60;
+    }
+    else if (units == "days"){
+      ms = amount * 24 * 60 * 60;
+    }
+    else if (units == "hours"){
+      ms = amount * 60 * 60;
+    }
+    else if (units == "minutes"){
+      ms = amount * 60;
+    }
+    else if (units == "seconds"){
+      ms = amount;
+    }
+    console.log(ms)
+    return ms;
+  }
+  function convertFromMS(ms){
+    console.log(ms)
+    var date = new Date(ms * 1000).toISOString().substring(0,10);
+    console.log(date)
+    return date
   }
   
 
@@ -331,7 +343,7 @@
   }
   
   function checkIfDomainNodeExists(id, nodes){
-    console.log(id)
+    // console.log(id)
     for (var n in nodes){
       console.log(nodes[n])
       if (id === nodes[n].entityId) return true;
@@ -383,7 +395,7 @@
           var html = '<div>';
           
             commonEIDs.forEach(function (element) {
-                miniHtml += '<div class="grid-row"> <div class="flex-item">'+element+'</div><label class="flex-item"> <input type="radio" value="ignore" name="'+element+'" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="exact" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="fuzzy" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="mlt" name="'+element+'"> <span></span> </label> <label class="flex-item"> <div class="slider boost"><input class="inp" id="'+element+'Boost" type="number" value="1" min="1" max="5">'
+                miniHtml += '<div class="grid-row"> <div class="flex-item">'+element+'</div><label class="flex-item"> <input type="radio" value="ignore" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="exact" name="'+element+'" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="fuzzy" name="'+element+'"> <span></span> </label> <label class="flex-item"> <input type="radio" value="mlt" name="'+element+'"> <span></span> </label> <label class="flex-item"> <div class="slider boost"><input class="inp" id="'+element+'Boost" type="number" value="1" min="1" max="5">'
                 miniHtml += '</div></label> </div>'
     
             });
@@ -391,13 +403,13 @@
             // Html for Time, Geo, and # of Records
             // Time Field - Check if we have time records, if so, add to dropdown list
             if(datelist.length>0){
-                miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="time" name="time"> <span>Time Filter</span> </label> </div>'
+                miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="time" name="timeInput" checked> <span>Time Filter</span> </label> </div>'
                 miniHtml += '<div class="slider time"> <div class="time dropdown" style="float: left;">'
                 // miniHtml += '<select id = "time_select"> <option value="" selected disabled hidden>Choose here</option>'
                 // for (date in datelist){ 
                 // miniHtml += '<option value="'+date +'">'+ datelist[date].type  +'  -  '+ datelist[date].label  +'  -   '+ datelist[date].date  +'</option>'
               // }
-               miniHtml += '</select> </div><div class="range-slider"> <input style="width: 50px; margin-right:10px;" type="number" name="other"><select name="example"><option value="A">A</option><option value="B">A</option><option value="-">Other</option></select></div></div></div>'
+               miniHtml += '</select> </div><div class="range-slider"> <input style="width: 50px; margin-right:10px;" value ="1" type="number" id="timeAmount"><select id="timeUnit"><option value="years">years</option><option value="days">days</option><option value="hours">hours</option><option value="minutes">minutes</option><option value="seconds">seconds</option></select></div></div></div>'
               }
               
               if(geolist.length>100){ // large number to hide div for now
@@ -408,7 +420,7 @@
               // }
               miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
               }
-              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <input id="limitResults" type="number" value="1" min="1" max="50"></div></div> </div></div></fieldset>';
+              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="limit" name="limit" checked> <span>Limit Results</span> </label> </div><div class="slider limit"> <input id="limitResults" type="number" value="5" min="1" max="50"></div></div> </div></div></fieldset>';
                       
 
           // html = html + '</div>';
@@ -420,29 +432,42 @@
 
   function readLimitResults(){
     // read the number limiting the results
-    var limitObject = {};
-    limitObject["limitResults"] = $('#'+"limitResults").val()
-    return limitObject;
+    var limit = 5;
+    if ($("input[name='limit']:checked").val() == "limit"){
+      limit = $('#'+"limitResults").val()
+    }
+    return limit;
 
 }
 
 function readUserInputTimeGeo(){
   // read the input for geopoint and the search range
-    var eids = [];
-
-    var timeObject = {}
-    var geoObject = {}
-    timeObject["dateDropdown"] = datelist[$('#time_select').val()]
-    timeObject["days"] = $('.time_days').val()
-    timeObject["months"] = $('.time_months').val()
-    timeObject["years"] = $('.time_years').val()
     
-    geoObject["geoDropdown"] = geolist[$("#geo_select").val()]
-    geoObject["metres"] = $('.geo_metres').val()
-    geoObject["km"] = $('.geo_km').val()
-    eids["time"] = timeObject
-    eids["geo"] = geoObject
-    return eids;
+    
+    console.log($("input[name='timeInput']:checked").val())
+
+    if ($("input[name='timeInput']:checked").val() == "time"){
+      var timeAndGeo = [];
+       var timeObject = {}
+      
+      timeObject["timeAmount"] = $("#timeAmount").val()
+      timeObject["timeUnit"] = $("#timeUnit").val()
+      console.log(timeObject)
+      timeAndGeo["time"] = timeObject;
+      return timeAndGeo;
+    }
+    if ($("input[name='geoInput']:checked").val() =="geo"){ 
+      var timeAndGeo = [];
+      var geoObject = {}
+      geoObject["geoDropdown"] = geolist[$("#geo_select").val()]
+      geoObject["metres"] = $('.geo_metres').val()
+      geoObject["km"] = $('.geo_km').val()
+      
+      timeAndGeo["geo"] = geoObject;
+      return timeAndGeo;
+    }
+    console.log(timeAndGeo)
+    return;
   }
 
 var selectionNodes = [];
@@ -521,7 +546,7 @@ function readUserInputEID(){
      geoObject["lon"] = objectToTest.long
      geoObject["type"] = type
      geoObject["label"] = label
-          geoObject["indexPattern"] = indexPattern
+    geoObject["indexPattern"] = indexPattern
 
      geolist.push(geoObject)
      }
@@ -574,11 +599,11 @@ function readUserInputEID(){
   function findGeoStringInPayload(selectedNode){
     // Whereas the above trio of functions will recursively search nested objects and test for lat/lon object property pairs
     // This will simply search ONE tier of selected node payload looking for geo location object
-    console.log(selectedNode)
+    // console.log(selectedNode)
     for (loc in selectedNode.payload){
-      console.log(selectedNode.payload[loc])
+      // console.log(selectedNode.payload[loc])
       // try {
-        console.log(selectedNode.payload)
+        // console.log(selectedNode.payload)
         // var objectToTest = JSON.parse(selctedNode.payload[loc])
         // if string can convert to json, then test for lat lon
         //set lat and lon
@@ -594,7 +619,7 @@ function readUserInputEID(){
         //   geolist.push(geoObject)
         // }
         if (loc == "location"){
-           console.log(selectedNode.payload["location"])
+          // console.log(selectedNode.payload["location"])
            var geoObject = {};
           geoObject["location"] = selectedNode.payload["location"]
           geoObject["type"] = selectedNode.type
@@ -617,8 +642,8 @@ function readUserInputEID(){
       var dateString = (objectToExamine[key])
       var d = new Date(dateString)
       if ((dateString[4] === "-") && (dateString[7] === "-") && (Date.parse(d) > 0)){
-        console.log(selectedNode)
-        console.log(key)
+        // console.log(selectedNode)
+        // console.log(key)
 
         var newObject = {};
         newObject["type"] = selectedNode.type;
@@ -648,47 +673,34 @@ function readUserInputEID(){
     return selectedRel;
   }
 
-  /*******************************
-   * THIS FUNCTION KICKS OFF THE MAIN PROCESS OF ESTABLISHING THE INDICES TO SEARCH, 
-   * AND THE FIELDS WITHIN EACH INDEX. 
-   * THE ES QUERIES ARE DYNAMICALLY CONSTRUCTED AND RUN, WITH THE TOP RESULTS BEING PLACED ON THE GRAPH.
-   * 
-   * THEN WE BUILD EDGES FROM NODE TO NODE, WITH BLUE EDGES REPRESENTING FULL MATCH, AND PINK REPRESENTING 
-   * INEXACT MATCHES.
-   */
  
-  function createEdges(nodes, newNodes){
+  function createEdges(nodes, newNodes, queryTypes){
     var edges = [];
     
     newNodes.forEach(function(virt){
-      console.log(virt)
-      
-      
-  
-    nodes.forEach(function(node){
-     
-      var manual = {};
-        manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
-        manual.properties = {}
-        manual.inV = virt
-        manual.inVLabel ="test"
-        manual.label = "test"
-        manual.w = 1
-        manual.outV = node.id
-        manual.outVLabel = "test"
-        manual.type = "edge";
-        manual.c = 'rgb(255,153,255)'
-        
-        /* We check if our node is an exact match with the selected node, if it is, we don't add it to the graph
-        /* as it will already be added 
-        */
-      
-            edges.push(manual)
-
-          
-        })
+      nodes.forEach(function(node){
+        var color;
+        var label = queryTypes[node.id]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
+    console.log("lable" + queryTypes[node.id])
+        if (queryTypes[node.id] === "time"){color = "rgb(82, 255, 51)"} 
+        else if (queryTypes[node.id] === "eid"){color = "rgb(255, 51, 240)"} 
+         
+          var manual = {};
+          manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
+          manual.properties = {}
+          manual.inV = virt // virt is the selected node, the origin of the edge
+          manual.label = label
+          manual.w = 1
+          manual.outV = node.id // this is the target node
+          manual.type = "edge";
+          manual.c = color;
+          manual.direction = "both"
+    
+          edges.push(manual)
+      })
     })
 
+    console.log(edges)
     return edges;
   }
 
@@ -706,27 +718,30 @@ function readUserInputEID(){
   var ESresultIndex = {};
   
   function extractIDs(hits){
-    console.log(hits)
+    // console.log(hits)
     var ids = [];
     for (var id in hits){
       var res = hits[id];
           var id = res._index + "/" + res._type + "/" + res._id;
       ids.push(id)
     }
-    console.log(ids)
+    // console.log(ids)
     return ids;
   }
 
-  function queryElasticSearch(index, query, graphModel){
+  function queryElasticSearch(index, query, graphModel, queryType, size){
       // for each index
-      console.log("exec: ")
-      console.log(query)
-      console.log(index)
-      return f.executeEsSearch(index, "", query, 5)
+      // console.log("exec: ")
+      // console.log(query)
+      // console.log(index)
+      return f.executeEsSearch(index, "", query, size)
       .then(function (searchResults){
-        // console.log(searchResults)
+         console.log(searchResults)
+         var resultAndType = {};
+         resultAndType.type = queryType;
+         resultAndType.result = searchResults;
         // sendToGraph(graphModel, extractIDs(searchResults.hits.hits))
-          return Promise.resolve(searchResults);
+          return Promise.resolve(resultAndType);
       });
   }
 
@@ -735,40 +750,45 @@ function readUserInputEID(){
   
  function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) {
     
-    var selection = getNodesSelection(graphSelection, graphModel);
-    var queryTemplate;
-    console.log(onOkModalResult)
+  var selection = getNodesSelection(graphSelection, graphModel);
+  var queryTemplate;
+  // console.log(onOkModalResult)
 
-     var constructQuery = new Promise(function(resolve, reject) {
-      resolve(findCommonIndicesToSearch(selectionNodes, graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults()));
-   });
+  var constructQuery = new Promise(function(resolve, reject) {
+    resolve(findCommonIndicesToSearch(selectionNodes, graphModel,readUserInputEID(), readUserInputTimeGeo(), readLimitResults()));
+  });
     
 
-queryPromises = [];
+  queryPromises = [];
 
-return constructQuery.then(function(results){
-      console.log(results)
+  var queryTypes = [];
+
+  return constructQuery.then(function(results){
+      // console.log(results)
     
-   for(query in results){
-        var elasticSearchPromise = new Promise(function(resolve, reject) {
-              resolve(queryElasticSearch(results[query].index, results[query].query, graphModel));
+    for(query in results){
+      var elasticSearchPromise = new Promise(function(resolve, reject) {
+        resolve(queryElasticSearch(results[query].index, results[query].query, graphModel, results[query].queryType, readLimitResults()));
       });
-        queryPromises.push(elasticSearchPromise);
+      queryPromises.push(elasticSearchPromise);
     }
       
     return Promise.all(queryPromises)
     .then(function(results){
-      console.log(results);
+      // console.log(results);
       
       var arrayofIDs = [];
+      var resultType = results.type;
     
       // /**************************
       // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
       // * *************************/
       results.forEach(function(result){
-        result.hits.hits.forEach(function(res){
-          console.log(res)
+        result.result.hits.hits.forEach(function(res){
+          
+          // console.log(res)
           var id = res._index + "/" + res._type + "/" + res._id;
+          queryTypes[id] = result.type;
           arrayofIDs.push(id)
       })
       })
@@ -778,7 +798,7 @@ return constructQuery.then(function(results){
       // queryTemplate = 'g.V($1).bothE(' + relList + ').as("e").bothV().as("v").select("e","v").mapValues()';
       
     
-      console.log(arrayofIDs)
+      // console.log(query)
       return Promise.all([
         entityResToGraph(arrayofIDs, graphId, query)
         // ,
@@ -786,14 +806,16 @@ return constructQuery.then(function(results){
       ])
       .then(function ([res1]) {
         
-        console.log(res1)
-        console.log(graphSelection)
-        console.log(graphModel)
+        // console.log(res1)
+        // console.log(graphSelection)
+        // console.log(graphModel)
+        // console.log(resultType)
         var edges = []
         var response = res1; // .concat(res2);
+        // console.log(arrayofIDs.concat(selection))
+        // console.log(queryTypes)
         
-        
-        var addedEdges = createEdges(res1, graphSelection)
+        var addedEdges = createEdges(response, graphSelection, queryTypes)
         
         response = response.concat(addedEdges)
         

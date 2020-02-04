@@ -190,7 +190,7 @@
       query.query.bool = {}
       query.query.bool.should = [];
      
-      
+      console.log(datelist)
         if ((datelist.length > 0) && (timeGeoQuery)){
           console.log("here")
         // We will see if any selected nodes have a date field, and if user has decided within a range of dates
@@ -215,6 +215,7 @@
             esDateQuery.query =datequery;
             console.log(esDateQuery)
             esDateQuery.queryType = "time";
+            esDateQuery.originNode = datelist[date].nodeID;
             esQueries.push(esDateQuery)
           }
          
@@ -651,6 +652,7 @@ function readUserInputEID(){
         newObject["date"] = objectToExamine[key];
         newObject["indexPattern"] = selectedNode.indexPattern;
         newObject["field"] = key;
+        newObject["nodeID"] = selectedNode.id;
 
         return newObject
       }
@@ -673,32 +675,80 @@ function readUserInputEID(){
     return selectedRel;
   }
 
+function checkObject(relation, manual) {
+  console.log(relation)
+  console.log(manual)
+  return (relation.in == manual.inV) && (relation.out == manual.outV) ; 
+  return (relation.label == manual.label) && (relation.in == manual.inV) && (relation.out == manual.outV) ; // as label not owrking we won't test for that now
+}
  
-  function createEdges(nodes, newNodes, queryTypes){
+  function createEdges(nodes, newNodes, queryTypes, originNodes, graphModel){
     var edges = [];
     
-    newNodes.forEach(function(virt){
-      nodes.forEach(function(node){
-        var color;
-        var label = queryTypes[node.id]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
-    console.log("lable" + queryTypes[node.id])
-        if (queryTypes[node.id] === "time"){color = "rgb(82, 255, 51)"} 
-        else if (queryTypes[node.id] === "eid"){color = "rgb(255, 51, 240)"} 
-         
-          var manual = {};
-          manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
-          manual.properties = {}
-          manual.inV = virt // virt is the selected node, the origin of the edge
-          manual.label = label
-          manual.w = 1
-          manual.outV = node.id // this is the target node
-          manual.type = "edge";
-          manual.c = color;
-          manual.direction = "both"
+    console.log(originNodes)
+    console.log(graphModel)
+    console.log(nodes)
+    console.log("here")
     
-          edges.push(manual)
-      })
+    if (originNodes){
+      for (originNode in originNodes){
+        var color;
+          var label = queryTypes[originNode]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
+          if (queryTypes[originNode] === "time"){color = "rgb(82, 255, 51)"} 
+          else if (queryTypes[originNode] === "eid"){color = "rgb(255, 51, 240)"} 
+           var manual = {};
+            manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
+            manual.properties = {}
+            manual.inV =  originNode// virt is the selected node, the origin of the edge
+            manual.label = label
+            manual.w = 1
+            manual.outV = originNodes[originNode] // this is the target node
+            manual.type = "edge";
+            manual.c = color;
+            manual.direction = "both"
+            var adding = true;
+            for (relation in graphModel.relations){
+              if (checkObject(graphModel.relations[relation], manual)){
+                console.log("already exists")
+                adding = false;
+              }
+            }
+            if (adding){
+              console.log("didn't find object so pushing")
+              edges.push(manual)
+            }
+           
+      }
+    }
+    else{
+    newNodes.forEach(function(virt){
+    
+     
+        console.log("Shoulthis")
+        nodes.forEach(function(node){
+          var color;
+          var label = queryTypes[node.id]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
+          console.log("lable" + queryTypes[node.id])
+          if (queryTypes[node.id] === "time"){color = "rgb(82, 255, 51)"} 
+          else if (queryTypes[node.id] === "eid"){color = "rgb(255, 51, 240)"} 
+           
+            var manual = {};
+            manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
+            manual.properties = {}
+            manual.inV = virt // virt is the selected node, the origin of the edge
+            manual.label = label
+            manual.w = 1
+            manual.outV = node.id // this is the target node
+            manual.type = "edge";
+            manual.c = color;
+            manual.direction = "both"
+      
+      
+            edges.push(manual)
+        })
+      
     })
+    }
 
     console.log(edges)
     return edges;
@@ -729,7 +779,7 @@ function readUserInputEID(){
     return ids;
   }
 
-  function queryElasticSearch(index, query, graphModel, queryType, size){
+  function queryElasticSearch(index, query, graphModel, queryType, size, originNodeID){
       // for each index
       // console.log("exec: ")
       // console.log(query)
@@ -739,6 +789,8 @@ function readUserInputEID(){
          console.log(searchResults)
          var resultAndType = {};
          resultAndType.type = queryType;
+         console.log(originNodeID, "post es")
+         resultAndType.originNodeID = originNodeID;
          resultAndType.result = searchResults;
         // sendToGraph(graphModel, extractIDs(searchResults.hits.hits))
           return Promise.resolve(resultAndType);
@@ -762,23 +814,27 @@ function readUserInputEID(){
   queryPromises = [];
 
   var queryTypes = [];
+  var originNodes = [];
 
   return constructQuery.then(function(results){
       // console.log(results)
     
     for(query in results){
+      var originNodeID = "";
+      if (results[query].originNode){ originNodeID = results[query].originNode}
       var elasticSearchPromise = new Promise(function(resolve, reject) {
-        resolve(queryElasticSearch(results[query].index, results[query].query, graphModel, results[query].queryType, readLimitResults()));
+        resolve(queryElasticSearch(results[query].index, results[query].query, graphModel, results[query].queryType, readLimitResults(), originNodeID));
       });
       queryPromises.push(elasticSearchPromise);
     }
       
     return Promise.all(queryPromises)
     .then(function(results){
-      // console.log(results);
+      console.log(results);
       
       var arrayofIDs = [];
       var resultType = results.type;
+
     
       // /**************************
       // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
@@ -786,9 +842,11 @@ function readUserInputEID(){
       results.forEach(function(result){
         result.result.hits.hits.forEach(function(res){
           
-          // console.log(res)
+          console.log(res)
           var id = res._index + "/" + res._type + "/" + res._id;
           queryTypes[id] = result.type;
+          originNodes[id] = result.originNodeID;
+
           arrayofIDs.push(id)
       })
       })
@@ -806,7 +864,7 @@ function readUserInputEID(){
       ])
       .then(function ([res1]) {
         
-        // console.log(res1)
+        console.log(res1)
         // console.log(graphSelection)
         // console.log(graphModel)
         // console.log(resultType)
@@ -815,7 +873,7 @@ function readUserInputEID(){
         // console.log(arrayofIDs.concat(selection))
         // console.log(queryTypes)
         
-        var addedEdges = createEdges(response, graphSelection, queryTypes)
+        var addedEdges = createEdges(response, graphSelection, queryTypes, originNodes, graphModel)
         
         response = response.concat(addedEdges)
         

@@ -245,10 +245,11 @@
               query.query.bool.should.push(constructExactQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
             }
           }
-          
+          console.log(selectedNodes[0].id)
           var esQuery = {};
           esQuery.index = quer.substr(quer.indexOf(":")+1);
           esQuery.query = query;
+          esQuery.originNode = selectedNodes[0].id
           esQuery.queryType = "eid";
           esQueries.push(esQuery)
         }
@@ -676,8 +677,7 @@ function readUserInputEID(){
   }
 
 function checkObject(relation, manual) {
-  console.log(relation)
-  console.log(manual)
+ 
   return (relation.in == manual.inV) && (relation.out == manual.outV) ; 
   return (relation.label == manual.label) && (relation.in == manual.inV) && (relation.out == manual.outV) ; // as label not owrking we won't test for that now
 }

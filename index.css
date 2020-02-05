@@ -35,6 +35,10 @@
 .subtitle {
   font-size: 0.7em;
 }
+.btn{
+  width: 20%;
+  margin-right: 10%;;
+}
 .flex-item:before {
   content: "";
   padding-top:26%;

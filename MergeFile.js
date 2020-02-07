@@ -38,8 +38,6 @@
   var geolist = [];
   var commonEIDs = [];
   var idsToBeAdded = [];
-
-
   
   // var miniHtml = '<style>@import url(https://fonts.googleapis.com/css?family=Cabin:700);@import url(https://fonts.googleapis.com/css?family=Roboto);.wrapper{display:flex; flex-direction:column;}.grid-row{margin-bottom: 1em}.grid-row, .grid-header{display:flex;}.sig-section-comments{display: flex; margin-top:1em; justify-content: flex-end;}.sig-section-comments label{width:180px;}.sig-section-comments textarea{width:67%;}.grid-header{align-items: flex-end;}.header-item{width:100px; text-align:center;}.header-item:nth-child(1){width:180px;}.subtitle{font-size: 0.7em;}.flex-item:before{content: ""; padding-top:26%;}.flex-item{display:flex; width:100px; border-bottom:1px solid #ccc; justify-content: center; align-items:center; font-size: 1em; font-weight:normal; color:#999;}.flex-item:nth-child(1){border:none; font-size:1.15em; color:#000; width:180px; justify-content: left;}[type="radio"], [type="checkbox"]{border: 0; clip: rect(0 0 0 0); height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px;}.slider{width: 70%;}.inp{margin-left: 5px; width: 25px; float: left;}.dropdown{margin-right: 20px;}label{cursor: pointer;}[type="radio"] + span:before,[type="checkbox"] + span:before{content: ""; display: inline-block; width: 1.5em; height: 1.5em; vertical-align: -0.25em; border-radius:.25em; border: 0.125em solid #fff; box-shadow: 0 0 0 0.15em #555; transition: 0.5s ease all;}[type="checkbox"] + span:before{margin-right: 0.75em;}[type="radio"]:checked + span:before,[type="checkbox"]:checked + span:before{background: green; box-shadow: 0 0 0 0.25em #666;}/* never forget focus styling */[type="radio"]:focus span:after{content: "\0020\2190"; font-size: 1.5em; line-height: 1; vertical-align: -0.125em;}/* Nothing to see here. */body{font-size:14px; margin: 3em auto; max-width: 40em; font-family: Roboto, sans;}fieldset{font-size: 1em; border: 2px solid #000; padding: 2em; border-radius: 0.5em; margin-bottom: 20px;}legend{color: #fff; background: #000; padding: 0.25em 1em; border-radius: 1em;}button{background-color:#507EDD; border:none; padding:10px; margin-top: 20px; color:white; font-size:1em; width:75%; position:relative; left:12.5%; border-radius:3px; box-shadow: 0 2px 5px 0 rgba(0,0,0,0.36),0 2px 10px 0 rgba(0,0,0,0.12);}</style><fieldset> <legend>Find Similar Records</legend> <div class="wrapper"> <div class="grid-header"> <div class="header-item"></div><div class="header-item" title="Exclude this Entity from search">Ignore</div><div class="header-item" title="Regular Search">Exact</div><div class="header-item" title="Fuzzy">Approx</div><div class="header-item" title="More Like This">MLT</div><div class="header-item" title="Boost">Boost</div></div><div class="grid-row"> <div class="flex-item">City</div><label class="flex-item"> <input type="radio" value="city ignore" name="city" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="city exact" name="city"> <span></span> </label> <label class="flex-item"> <input type="radio" value="city fuzzy" name="city"> <span></span> </label> <label class="flex-item"> <input type="radio" value="city mlt" name="city"> <span></span> </label> <label class="flex-item"> <div class="slider boost"> <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div></div></label> </div><div class="grid-row"> <div class="flex-item">Email</div><label class="flex-item"> <input type="radio" value="email ignore" name="email" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="email auto" name="email"> <span></span> </label> <label class="flex-item"> <input type="radio" value="email fuzzy" name="email"> <span></span> </label> <label class="flex-item"> <input type="radio" value="email mlt" name="email"> <span></span> </label> <label class="flex-item"> <div class="slider boost"> <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div></div></label> </div><div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Time Filter</span> </label> </div><div class="slider time"> <div class="time dropdown" style="float: left;"><select> <option value="" selected disabled hidden>Choose here</option> <option value="1">One</option> <option value="2">Two</option> <option value="3">Three</option> <option value="4">Four</option> <option value="5">Five</option> </select> </div><div class="range-slider"> <input class="inp days" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">days</div><input class="inp months" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">mths</div><input class="inp years" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">yrs</div></div></div></div><div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Geo Filter</span> </label> </div><div class="slider geo" style="float: left;"> <div class="geo dropdown" style="float: left;"><select> <option value="" selected disabled hidden>Choose here</option> <option value="1">One</option> <option value="2">Two</option> <option value="3">Three</option> <option value="4">Four</option> <option value="5">Five</option> </select> </div><div class="range-slider"> <input class="inp metres" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div><div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="impact" name="consult-sig-sme"> <span>Limit Results</span> </label> </div><div class="slider limit"> <div class="range-slider"> <input class="range-slider__range" type="range" value="5" min="0" max="20"> <span class="range-slider__value">0</span> top results </div></div></div><div> <button class="btn btn-save">Find Records</button> </div></div></fieldset>';
 
@@ -94,19 +92,23 @@
   }
 
   function constructGeoProximityQuery(point, distance, field){
+    console.log(point)
+    var geoprox;
 
-    var geoprox = {};
-    // geoprox.query = {};
-    geoprox.bool = {};
-    geoprox.bool.must = {};
-    geoprox.bool.must.match_all = {};
-    geoprox.bool.filter = {};
-    geoprox.bool.filter.geo_distance = {};
-    geoprox.bool.filter.geo_distance.distance = distance;
-    geoprox.bool.filter.geo_distance[field] = point;
-  
-    // console.log(JSON.stringify(geoprox))
-  
+    if (point && field){
+      geoprox = {};
+      geoprox.bool = {};
+      geoprox.bool.must = {};
+      geoprox.bool.must.match_all = {};
+      geoprox.bool.filter = {};
+      geoprox.bool.filter.geo_distance = {};
+      geoprox.bool.filter.geo_distance.distance = distance;
+      geoprox.bool.filter.geo_distance[field] = point;
+    
+      console.log(geoprox.bool.filter.geo_distance[field])
+      console.log(JSON.stringify(geoprox))
+    }
+
     return geoprox;
   }
 
@@ -140,7 +142,6 @@
           
         }
         
-        var targetIndices = []
         var queries = [];
         var fieldList = [];
         // Top Level of Query
@@ -180,35 +181,56 @@
       // TODO: Now that we have queries, we filter eid Relation Sets so that only index Patterns that are common to each EID will be searched
       // As an aside, we can test each index pattern to see if it will also be a target index to be searched
       // var targetIndex = filterTargetIndicesToBeSearched(eidRelationSets, eidIndices, indexPattern)
-       var esQueries = [];
+      var esQueries = [];
       var query = {};
       query.query = {};
       query.query.bool = {}
       query.query.bool.should = [];
      
-        if ((datelist.length > 0) && (timeGeoQuery)){
-        // We will see if any selected nodes have a date field, and if user has decided within a range of dates
-         for(date in datelist){
-            var datequery = {};
-            datequery.query = {};
-            // datequery.query.bool = {}
-            // datequery.query.bool.should = [];
+      if ((datelist.length > 0) && (timeGeoQuery["time"])){
+      // We will see if any selected nodes have a date field, and if user has decided within a range of dates
+       for(date in datelist){
+          var datequery = {};
+          datequery.query = {};
+          // datequery.query.bool = {}
+          // datequery.query.bool.should = [];
 
-            // Here we should convert Date to ms, and user range input to ms
-            var baseDate = convertFromISOtoMS(datelist[date].date);
-            var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
-            var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
-            var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
+          // Here we should convert Date to ms, and user range input to ms
+          var baseDate = convertFromISOtoMS(datelist[date].date);
+          var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
+          var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
+          var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
 
-            datequery.query = constructTimeRangeQuery(datelist[date].field, lte, gte);
-            var esDateQuery = {};
-            esDateQuery.index = datelist[date].indexPattern.substr(datelist[date].indexPattern.indexOf(":")+1);
-            esDateQuery.query =datequery;
-            esDateQuery.queryType = "time";
-            esDateQuery.originNode = datelist[date].nodeID;
-            esQueries.push(esDateQuery)
-          }
-         
+          datequery.query = constructTimeRangeQuery(datelist[date].field, lte, gte);
+          var esDateQuery = {};
+          esDateQuery.index = datelist[date].indexPattern.substr(datelist[date].indexPattern.indexOf(":")+1);
+          esDateQuery.query =datequery;
+          esDateQuery.queryType = "time";
+          esDateQuery.originNode = datelist[date].nodeID;
+          esQueries.push(esDateQuery)
+        }
+      }
+      if ((geolist.length > 0) && (timeGeoQuery["geo"])){
+      // We will see if any selected nodes have a date field, and if user has decided within a range of dates
+       for(geo in geolist){
+          var geoquery = {};
+          geoquery.query = {};
+          // datequery.query.bool = {}
+          // datequery.query.bool.should = [];
+
+          // Here we should create range
+          var range = timeGeoQuery["geo"].geoAmount + timeGeoQuery["geo"].geoUnit;   
+
+          geoquery.query = constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field);
+          if (geoquery.query){
+            var esGeoQuery = {};
+            esGeoQuery.index = geolist[geo].indexPattern.substr(geolist[geo].indexPattern.indexOf(":")+1);
+            esGeoQuery.query = geoquery;
+            esGeoQuery.queryType = "geo";
+            esGeoQuery.originNode = geolist[geo].nodeID;
+            esQueries.push(esGeoQuery)
+          }  
+        }
       }
      
       for (var quer in fieldList){
@@ -400,17 +422,17 @@
              miniHtml += '</select> </div><div class="range-slider"> <input style="width: 50px; margin-right:10px;" value ="1" type="number" id="timeAmount"><select id="timeUnit"><option value="years">years</option><option value="days">days</option><option value="hours">hours</option><option value="minutes">minutes</option><option value="seconds">seconds</option></select></div></div></div>'
             }
             
-            if(geolist.length>100){ // large number to hide div for now
-            miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="geo" name="geo"> <span>Geo Filter</span> </label> </div><div class="slider geo" style="float: left;"> <div class="geo dropdown" style="float: left;">'
-            // miniHtml += '<select id="geo_select"> <option value="" selected disabled hidden>Choose here</option>' 
-            // for (geo in geolist){
-            //   miniHtml += '<option value="'+geo +'">'+ geolist[geo].type  +'  -  '+ geolist[geo].label  +'  -   '+ geolist[geo].lat  +' -   '+ geolist[geo].lon  +'</option>' 
+            if(geolist.length>0){
+              miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="geo" name="geoInput" checked> <span>Geo Filter</span> </label> </div>'
+              miniHtml += '<div class="slider geo"> <div class="time dropdown" style="float: left;">'
+              // miniHtml += '<select id = "time_select"> <option value="" selected disabled hidden>Choose here</option>'
+              // for (date in datelist){ 
+              // miniHtml += '<option value="'+date +'">'+ datelist[date].type  +'  -  '+ datelist[date].label  +'  -   '+ datelist[date].date  +'</option>'
             // }
-            miniHtml += '</select> </div><div class="range-slider"> <input class="geo_metres inp " type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">m</div><input class="inp geo_km" type="text" value="0" min="0" max="5000"><div style="float: left;margin: 5px;">km</div></div></div></div>'
+             miniHtml += '</select> </div><div class="range-slider"> <input style="width: 50px; margin-right:10px;" value ="1" type="number" id="geoAmount"><select id="geoUnit"><option value="km">km</option><option value="m">m</option></select></div></div></div>'
             }
             miniHtml += '<div class="grid-row"> <div class="selecter" style="float:left; width: 30%;"> <label> <input type="checkbox" value="limit" name="limit" checked> <span>Limit Results</span> </label> </div><div class="slider limit"> <input id="limitResults" type="number" value="5" min="1" max="50"></div></div> </div></div></fieldset>';
-                    
-    
+
         // html = html + '</div>';
         html = miniHtml;
         f.openModal(graphId ,'Select the fields you want to base search on', html);
@@ -427,28 +449,24 @@
     return limit;
   }
 
-function readUserInputTimeGeo(){
+  function readUserInputTimeGeo(){
   // read the input for geopoint and the search range
+  var timeAndGeo = [];
     if ($("input[name='timeInput']:checked").val() == "time"){
-      var timeAndGeo = [];
       var timeObject = {}
       
       timeObject["timeAmount"] = $("#timeAmount").val()
       timeObject["timeUnit"] = $("#timeUnit").val()
       timeAndGeo["time"] = timeObject;
-      return timeAndGeo;
     }
-    if ($("input[name='geoInput']:checked").val() =="geo"){ 
-      var timeAndGeo = [];
+    if ($("input[name='geoInput']:checked").val() == "geo"){ 
       var geoObject = {}
-      geoObject["geoDropdown"] = geolist[$("#geo_select").val()]
-      geoObject["metres"] = $('.geo_metres').val()
-      geoObject["km"] = $('.geo_km').val()
-      
+      geoObject["geoAmount"] = $("#geoAmount").val()
+      geoObject["geoUnit"] = $("#geoUnit").val()  
       timeAndGeo["geo"] = geoObject;
-      return timeAndGeo;
     }
-    return;
+    console.log(timeAndGeo)
+    return timeAndGeo;
   }
 
   function readUserInputEID(){
@@ -468,6 +486,7 @@ function readUserInputTimeGeo(){
     selectionNodes = []
     datelist = [];
     geolist = [];
+    console.log(metaData)
     if (!graphSelection || graphSelection.length === 0) {
       _.each(graphModel.nodes, function (node) {
         selection.push(node.id);
@@ -479,12 +498,14 @@ function readUserInputTimeGeo(){
         if (selectionSet.has(node.id)) {
           selectedNode = node;
           lookup = selectedNode.payload;
-          if (findDatesInNodeRecord(selectedNode)){
-            datelist.push(findDatesInNodeRecord(selectedNode))
+              console.log(metaData)
+
+          if (findDatesInNodeRecord(selectedNode, metaData)){
+            datelist.push(findDatesInNodeRecord(selectedNode, metaData))
           }
           
-          if (findGeoInNodeRecord(selectedNode)){
-            geolist.push(findGeoInNodeRecord(selectedNode))
+          if (findGeoInNodeRecord(selectedNode, metaData)){
+            geolist.push(findGeoInNodeRecord(selectedNode, metaData))
           }
           selection.push(node.id);
           selectionNodes.push(node);
@@ -494,133 +515,42 @@ function readUserInputTimeGeo(){
     return selection;
   }
 
-  function checkForLatLon(objectToTest, type, label, indexPattern){
-    // For now we use a weak check on field names to see if we are dealing with lat lon
-    //need a more robust check that won't see numbers as lat/lon
-    if (objectToTest["lat"] && objectToTest["lon"]){
-      //set lat and lon
-      var geoObject = {};
-       
-      geoObject["lat"] = objectToTest.lat
-      geoObject["lon"] = objectToTest.lon
-      geoObject["type"] = type
-      geoObject["label"] = label
-      geoObject["indexPattern"] = indexPattern
-      geolist.push(geoObject)
-    }
-    else if (objectToTest["lat"] && objectToTest["long"]){
-      //set lat and lon
-      var geoObject = {};
-    
-      geoObject["lat"] = objectToTest.lat
-      geoObject["lon"] = objectToTest.long
-      geoObject["type"] = type
-      geoObject["label"] = label
-      geoObject["indexPattern"] = indexPattern
-  
-      geolist.push(geoObject)
-    }
-    else if (objectToTest["lat"] && objectToTest["lng"]){
-      //set lat and lon
-      var geoObject = {};
-    
-      geoObject["lat"] = objectToTest.lat
-      geoObject["lon"] = objectToTest.lng
-      geoObject["type"] = type
-      geoObject["label"] = label
-      geoObject["indexPattern"] = indexPattern
-  
-      geolist.push(geoObject)
-    }
-    else if (objectToTest["latitude"] && objectToTest["longitude"]){
-      //set lat and lon
-      var geoObject = {};
-       
-      geoObject["lat"] = objectToTest.latitude
-      geoObject["lon"] = objectToTest.longitude
-      geoObject["type"] = type
-      geoObject["label"] = label
-      geoObject["indexPattern"] = indexPattern
-  
-  
-      geolist.push(geoObject)
-    }
-    
-    findSubObjects(objectToTest, type, label, indexPattern)
-  }
-  
-  function findSubObjects(objectToTest,type,label, indexPattern){
-       //recusively search within each object branch to see if a geopoint exists
-       for (var key in objectToTest){
-         //test to see if property is object, if so, test for lat lon
-        if (objectToTest[key] instanceof Object){
-           checkForLatLon(objectToTest[key], type, label, indexPattern)
-        }
-       }
-  }
-
- function findGeoInNodeRecord(selectedNode){
-    // if(checkForLatLon(selectedNode, selectedNode.type, selectedNode.label, selectedNode.indexPattern, "root")){
-       if(findGeoStringInPayload(selectedNode)) return     
- }
-  
-  function findGeoStringInPayload(selectedNode){
-    // Whereas the above trio of functions will recursively search nested objects and test for lat/lon object property pairs
-    // This will simply search ONE tier of selected node payload looking for geo location object
-    // console.log(selectedNode)
-    for (loc in selectedNode.payload){
-      // console.log(selectedNode.payload[loc])
-      // try {
-        // console.log(selectedNode.payload)
-        // var objectToTest = JSON.parse(selctedNode.payload[loc])
-        // if string can convert to json, then test for lat lon
-        //set lat and lon
-        // if (objectToTest["lat"] && objectToTest["lon"]){
-        //   var geoObject = {};
-     
-        //   geoObject["lat"] = objectToTest.lat
-        //   geoObject["lon"] = objectToTest.lon
-        //   geoObject["type"] = selectedNode.type
-        //   geoObject["label"] = selectedNode.label
-        //   geoObject["field"] = loc
-        //   geoObject["indexPattern"] = selectedNode.indexPattern
-        //   geolist.push(geoObject)
-        // }
-        if (loc == "location"){
+  function findGeoInNodeRecord(selectedNode, metadata){
+    var objectToExamine = selectedNode.payload;
+    var geoField = metadata[selectedNode.indexPattern].geoField;
+    console.log(geoField)
+    // Check metadata for geoField. If exists, create new object with properties"type", "label", and "geo_point"
+        if (geoField){
           // console.log(selectedNode.payload["location"])
            var geoObject = {};
-          geoObject["location"] = selectedNode.payload["location"]
-          geoObject["type"] = selectedNode.type
-          geoObject["label"] = selectedNode.label
-          geoObject["field"] = loc
-          geoObject["indexPattern"] = selectedNode.indexPattern
-          geolist.push(geoObject)
-
+          geoObject["location"] = selectedNode.payload[geoField];
+          geoObject["type"] = selectedNode.type;
+          geoObject["label"] = selectedNode.label;
+          geoObject["field"] = geoField;
+          geoObject["indexPattern"] = selectedNode.indexPattern;
+          geoObject["nodeID"] = selectedNode.id;
+          
+          return geoObject;
         }
-    }
   }
-  function findDatesInNodeRecord(selectedNode){
+  
+  function findDatesInNodeRecord(selectedNode, metadata){
     var objectToExamine = selectedNode.payload;
-    // search through payload for date field(s). If exists, create new object with properties"type", "label", and "date"
-    for (var key in objectToExamine){
+    var timeField = metadata[selectedNode.indexPattern].timeField;
+    console.log(timeField)
+    // Check metadata for timefield. If exists, create new object with properties"type", "label", and "date"
+      if (timeField){
+        var timeObject = {};
+        timeObject["type"] = selectedNode.type;
+        timeObject["label"] = selectedNode.label;
+        timeObject["date"] = objectToExamine[timeField];
+        timeObject["indexPattern"] = selectedNode.indexPattern;
+        timeObject["field"] = timeField;
+        timeObject["nodeID"] = selectedNode.id;
 
-      var dateString = (objectToExamine[key])
-      var d = new Date(dateString)
-      if ((dateString[4] === "-") && (dateString[7] === "-") && (Date.parse(d) > 0)){
-
-        var newObject = {};
-        newObject["type"] = selectedNode.type;
-        newObject["label"] = selectedNode.label;
-        newObject["date"] = objectToExamine[key];
-        newObject["indexPattern"] = selectedNode.indexPattern;
-        newObject["field"] = key;
-        newObject["nodeID"] = selectedNode.id;
-
-        return newObject
+        return timeObject;
       }
-    }
   }
- 
 
   function onModalOk(scope, graphModel) {
     var selectedRel = [];
@@ -642,13 +572,26 @@ function checkObject(relation, manual) {
   function createEdges(nodes, newNodes, queryTypes, originNodes, graphModel){
     var edges = [];
     
+    console.log(originNodes)
+    
     if (originNodes){
       for (originNode in originNodes){
-          var weight = returnPosition(originNode, orderedResults["time"])
+          var weight;
+          console.log ("Time weight is " + weight)
           var color;
           var label = queryTypes[originNode]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
-          if (queryTypes[originNode] === "time"){color = "rgb(82, 255, 51)"} 
-          else if (queryTypes[originNode] === "eid"){color = "rgb(255, 51, 240)"} 
+          if (queryTypes[originNode] === "time"){
+            color = "rgb(82, 255, 51)";
+            weight = returnPosition(originNode, orderedResults["time"])
+          } 
+          else if (queryTypes[originNode] === "eid"){
+            color = "rgb(255, 51, 240)";
+            weight = returnPosition(originNode, orderedResults["eid"])
+          } 
+          else if (queryTypes[originNode] === "geo"){
+            color = "rgb(0, 0, 255)";
+            weight = returnPosition(originNode, orderedResults["geo"])
+          } 
            var manual = {};
             manual.id = "VE_-"+Math.floor(Math.random()*16777215).toString(16)
             manual.properties = {}
@@ -673,10 +616,12 @@ function checkObject(relation, manual) {
            
       }
     }
-    else{
+    else{ // This Else contaisn the old way of building edges. Most likely will delete from code
     newNodes.forEach(function(virt){
         nodes.forEach(function(node){
           var weight = returnPosition(node.id, orderedResults["eid"])
+                    console.log ("EID weight is " + weight)
+
           var color;
           var label = queryTypes[virt]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
           if (queryTypes[node.id] === "time"){color = "rgb(82, 255, 51)"} 
@@ -702,13 +647,13 @@ function checkObject(relation, manual) {
   }
 
   function returnPosition(id, orderedResult){
-    console.log(id)
-    console.log(orderedResult)
+    // console.log(id)
+    // console.log(orderedResult)
     for (i in orderedResult){
-      console.log(orderedResult[i]._id +  "-" + id)
+      // console.log(orderedResult[i]._id +  "-" + id)
       if (id == (orderedResult[i]._index + "/" + orderedResult[i]._type + "/" +orderedResult[i]._id)){
-        console.log(i)
-        return i+1;
+        var weight = parseInt(i) + 1;
+        return weight;
       }
     }
   }
@@ -797,10 +742,12 @@ var orderedResults = {};
           arrayofIDs.push(id)
       })
       })
-      console.log(orderedResults["eid"])
+      // console.log(orderedResults["eid"])
       if (orderedResults["time"]) orderedResults["time"].sort((a, b) => (a._score > b._score) ? 1 : -1)
       if (orderedResults["eid"]) orderedResults["eid"].sort((a, b) => (a._score > b._score) ? 1 : -1)
-            console.log(orderedResults)
+      if (orderedResults["geo"]) orderedResults["geo"].sort((a, b) => (a._score > b._score) ? 1 : -1)
+
+            // console.log(orderedResults)
 
       /*************** PLACE ALL ON GRAPH***************/
       var query = 'g.V($1)';
@@ -820,7 +767,6 @@ var orderedResults = {};
         return f.addResultsToGraph(graphId, arrayofIDs.concat(selection), newGraphModel)
         .then(function(res){
           console.log(res)
-          tooltip(graphId, newGraphModel)
         })
       })
     })
@@ -834,18 +780,3 @@ var orderedResults = {};
     })
   }
   
-  
-  /* Experminting with Tooltip style Info Display */
-  function tooltip(graphId, graphModel) {
-    console.log("does this run?")
-  _.each(graphModel, function (node) {
-      console.log(node)
-      node.tooltip = ""
-      node.tooltip += "<b>One liner:</b> Used Car Connections<br/><br/><b>Overview:</b><br><p>Looking for a used car? Search our listings of local used cars for sale nationwide. LocalCarHub.com conveniently displays local cars for sale in your area, connecting buyers with sellers. Our system allows you to search with ease from your home. Search for used cars, trucks and SUV        s locally and find the car you are looking for today! Visit us daily as LocalCarHub.com lists hundreds of used car classifieds every day.</p><br><br><b>Website:</b> <a href='http://www.crunchbase.com/company/localcarhub-com' target='_new'>http://www.crunchbase.com/company/localcarhub-com</a>";
-      var sortedPayload = {};
-     
-    // }
-  });
-
-  return Promise.resolve(graphModel);
-}

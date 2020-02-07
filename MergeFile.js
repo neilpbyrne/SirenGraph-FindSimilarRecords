@@ -293,8 +293,11 @@
   function extractMetaData(entities){
     for (ent in entities){
       if (entities[ent].indexPattern){
-        var timeField = entities[ent]._objects.indexPattern.timeFieldName;
-        var geoField = "";
+        var timeField;
+        if (entities[ent]._objects.indexPattern.timeFieldName){
+          timeField = entities[ent]._objects.indexPattern.timeFieldName;
+        }
+        var geoField;
         for (field in entities[ent]._objects.indexPattern.fields){
           if (entities[ent]._objects.indexPattern.fields[field].type == "geo_point"){
             geoField = entities[ent]._objects.indexPattern.fields[field].name;
@@ -517,7 +520,11 @@
 
   function findGeoInNodeRecord(selectedNode, metadata){
     var objectToExamine = selectedNode.payload;
-    var geoField = metadata[selectedNode.indexPattern].geoField;
+    var geoMeta = metadata[selectedNode.indexPattern];
+    var geoField;
+    if (geoMeta["geoField"]){
+      geoField = geoMeta["geoField"]
+    }
     console.log(geoField)
     // Check metadata for geoField. If exists, create new object with properties"type", "label", and "geo_point"
         if (geoField){
@@ -536,7 +543,12 @@
   
   function findDatesInNodeRecord(selectedNode, metadata){
     var objectToExamine = selectedNode.payload;
-    var timeField = metadata[selectedNode.indexPattern].timeField;
+    var timeField; 
+    console.log(metadata)
+    var timeMeta = metadata[selectedNode.indexPattern];
+    if (timeMeta["timeField"]){
+      timeField = timeMeta["timeField"];
+    }
     console.log(timeField)
     // Check metadata for timefield. If exists, create new object with properties"type", "label", and "date"
       if (timeField){

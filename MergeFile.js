@@ -292,14 +292,19 @@
   var metaData = {};
   function extractMetaData(entities){
     for (ent in entities){
+      console.log(entities[ent])
       if (entities[ent].indexPattern){
+        console.log("we have index pattern type " + entities[ent].indexPattern)
         var timeField;
         if (entities[ent]._objects.indexPattern.timeFieldName){
           timeField = entities[ent]._objects.indexPattern.timeFieldName;
         }
+        else{console.log("doesn't have time field")}
         var geoField;
         for (field in entities[ent]._objects.indexPattern.fields){
+          console.log("has fields metadata")
           if (entities[ent]._objects.indexPattern.fields[field].type == "geo_point"){
+            console.log("has geo point, there fore has meta data")
             geoField = entities[ent]._objects.indexPattern.fields[field].name;
             var metaObject = {};
             metaObject["geoField"] = geoField;
@@ -522,7 +527,7 @@
     var objectToExamine = selectedNode.payload;
     var geoMeta = metadata[selectedNode.indexPattern];
     var geoField;
-    if (geoMeta["geoField"]){
+    if (geoMeta && geoMeta["geoField"]){
       geoField = geoMeta["geoField"]
     }
     console.log(geoField)
@@ -544,9 +549,9 @@
   function findDatesInNodeRecord(selectedNode, metadata){
     var objectToExamine = selectedNode.payload;
     var timeField; 
-    console.log(metadata)
+    console.log(selectedNode)
     var timeMeta = metadata[selectedNode.indexPattern];
-    if (timeMeta["timeField"]){
+    if (timeField && timeMeta["timeField"]){
       timeField = timeMeta["timeField"];
     }
     console.log(timeField)

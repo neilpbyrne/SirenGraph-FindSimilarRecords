@@ -128,7 +128,7 @@
           connectionCount++;
         }
       }
-      if(connectionCount == indicesAndTheirEIDs[index].length){
+      if(indicesAndTheirEIDs[index].length > 0){
         searches.push(index)
       }
     });
@@ -183,6 +183,11 @@
           
           var INDICES_TO_SEARCH = getIndicesLinkedToAllSelectedEIDs(indexToEidRelations, eids)
           
+          if (INDICES_TO_SEARCH.length == 0){
+            INDICES_TO_SEARCH.push(selectedNodes[n].indexPattern);
+            console.log()
+          }
+          
           for (index in INDICES_TO_SEARCH){
             var nodeQuery = {};
             nodeQuery.query = {};
@@ -214,7 +219,7 @@
               }
             }
             if (similarityQuery.bool.should.length > 0){
-            nodeQuery.query.bool.must.push(similarityQuery); // added similarity query if exists
+              nodeQuery.query.bool.must.push(similarityQuery); // added similarity query if exists
             }
             if ((datelist.length > 0) && (timeGeoQuery["time"])){
               // We will see if any selected nodes have a date field, and if user has decided within a range of dates
@@ -226,8 +231,8 @@
                     var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
                     var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
                     var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
-          
-                    nodeQuery.query.bool.must.push(constructTimeRangeQuery(datelist[date].field, lte, gte));
+                    var timeQuery = constructTimeRangeQuery(datelist[date].field, lte, gte);
+                    if (timeQuery) nodeQuery.query.bool.must.push(timeQuery);
                   }
                 }
               }
@@ -241,7 +246,8 @@
                   if (geolist[geo].nodeID == selectedNodes[n].id){
                     if (geolist[geo].field){
                       var range = timeGeoQuery["geo"].geoAmount + timeGeoQuery["geo"].geoUnit;   
-                      nodeQuery.query.bool.must.push(constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field));
+                      var geoQuery = constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field);
+                      if (geoQuery) nodeQuery.query.bool.must.push(geoQuery);
                     }
                 }
               }

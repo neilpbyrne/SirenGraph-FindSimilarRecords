@@ -128,6 +128,7 @@
   
   function findCommonIndicesToSearch(selectedNodes, graphModel, eids, timeGeoQuery, limitResults){
     var eidRelationSets = {};
+    var indexSet = new Set();
      return f.getKibiRelations()
       .then(function (relations) {
         for (relation in relations){
@@ -138,9 +139,115 @@
             indexPatternAndField["indexPattern"] = relations[relation].range.indexPattern;
             indexPatternAndField["field"] = relations[relation].rangeField;
             eidRelationSets[eidName].push(indexPatternAndField);
+            indexSet.add(relations[relation].range.indexPattern);
           }
-          
         }
+        
+        console.log(selectedNodes)
+        console.log(eidRelationSets)
+        console.log(eids)
+        
+        /************* We Loop through Selected Nodes. For each we loop through selected eids. If the eid is not ignored
+         *              we create the query section corresponding to the action (mlt/fuzzy/exact) WITH time and geo constraints ***/
+         var perNodeQueries = [];
+         
+        for (n in selectedNodes){
+          // create a query for each node
+          var nodeQuery = {};
+          nodeQuery.query = {};
+          nodeQuery.query.bool = {}
+          nodeQuery.query.bool.must = [];
+          
+          var indexSearches = {};
+          indexSearches.bool = {};
+          indexSearches.bool.should = [];
+          
+          indexSet.forEach(function(ind){
+            var indexCheck = {};
+            indexCheck.term = {};
+            indexCheck.term["_index"] =ind.substr(ind.indexOf(":")+1);
+            indexSearches.bool.should.push(indexCheck);
+          })
+          nodeQuery.query.bool.must.push(indexSearches)
+          
+          // We have now added the indexes to search in an OR format
+          // Now we add the search criterai. EIDs, time, geo
+          
+          var contentQuery = {};
+          contentQuery.bool = {};
+          contentQuery.bool.must = [];
+
+          //now we add to the bool 'should' elements to the query. We loop through 'eids' first. If eid.action != ignore, then we add connected field to query
+          for (eid in eids){
+            if (eids[eid].action !== "ignore"){
+              var eidCheck = {};
+              eidCheck.bool = {};
+              eidCheck.bool.should = [];
+              if (eids[eid].action == "exact"){
+                // we loop through all fields this eid connects to and build an OR statement
+                var eidOriginElement = eidRelationSets[eid];
+                for (eidOrigin in eidOriginElement){
+                  var eidFieldQuery = {};
+                  eidFieldQuery.term = {};
+                  eidFieldQuery.term[eidOriginElement[eidOrigin].field] = selectedNodes[n].payload[eidOriginElement[eidOrigin].field];
+                  eidCheck.bool.should.push(eidFieldQuery);
+                }
+                contentQuery.bool.must.push(eidCheck);
+              } 
+              else if (eids[eid].action == "fuzzy"){
+                 // we loop through all fields this eid connects to and build an OR statement
+                var eidOriginElement = eidRelationSets[eid];
+                for (eidOrigin in eidOriginElement){
+                  var eidFieldQuery = constructFuzzyQuery(selectedNodes[n].payload[eidOriginElement[eidOrigin].field], eidOriginElement[eidOrigin].field);
+                  eidCheck.bool.should.push(eidFieldQuery);
+                }
+                contentQuery.bool.must.push(eidCheck);
+              }
+              else if (eids[eid].action == "mlt"){
+                 // we loop through all fields this eid connects to and build an OR statement
+                var eidOriginElement = eidRelationSets[eid];
+                for (eidOrigin in eidOriginElement){
+                  var eidFieldQuery = constructMoreLikeThisQuery(eidOriginElement[eidOrigin].field, selectedNodes[n].payload[eidOriginElement[eidOrigin].field]);
+                  eidCheck.bool.should.push(eidFieldQuery);
+                }
+                contentQuery.bool.must.push(eidCheck);
+              }
+              
+            }
+          }
+          if ((datelist.length > 0) && (timeGeoQuery["time"])){
+            // We will see if any selected nodes have a date field, and if user has decided within a range of dates
+             for(date in datelist){
+      
+      
+                // Here we should convert Date to ms, and user range input to ms
+                if (datelist[date].field){
+                var baseDate = convertFromISOtoMS(datelist[date].date);
+                var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
+                var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
+                var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
+      
+                contentQuery.bool.must.push(constructTimeRangeQuery(datelist[date].field, lte, gte));
+                }
+              }
+            }
+      if ((geolist.length > 0) && (timeGeoQuery["geo"])){
+        console.log(geolist)
+      // We will see if any selected nodes have a date field, and if user has decided within a range of dates
+       for(geo in geolist){
+         
+          // Here we should create range
+          if (geolist[geo].field){
+          var range = timeGeoQuery["geo"].geoAmount + timeGeoQuery["geo"].geoUnit;   
+
+          contentQuery.bool.must.push(constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field));
+          }
+        }
+      }
+            nodeQuery.query.bool.must.push(contentQuery)
+            console.log(JSON.stringify(nodeQuery))
+        }
+        
         
         var queries = [];
         var fieldList = [];
@@ -256,6 +363,7 @@
           esQueries.push(esQuery)
         }
       }
+      console.log(esQueries)
       return Promise.resolve(esQueries)
       });
       
@@ -551,7 +659,7 @@
     var timeField; 
     console.log(selectedNode)
     var timeMeta = metadata[selectedNode.indexPattern];
-    if (timeField && timeMeta["timeField"]){
+    if (timeMeta && timeMeta["timeField"]){
       timeField = timeMeta["timeField"];
     }
     console.log(timeField)

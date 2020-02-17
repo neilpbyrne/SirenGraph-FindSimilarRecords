@@ -108,7 +108,7 @@
     rangeQuery.range[field] = {};
     if (dateAfter) rangeQuery.range[field].gte = dateAfter;
     if (dateBefore) rangeQuery.range[field].lte = dateBefore;
-    rangeQuery.range[field].format = "yyyy-MM-dd";
+    rangeQuery.range[field].format = "8y-MM-dd";
   
     // console.log(JSON.stringify(rangeQuery))
   

@@ -48,34 +48,23 @@
   // miniHtml += '<div class="grid-row"> <div class="flex-item">Email</div><label class="flex-item"> <input type="radio" value="email ignore" name="email" checked> <span></span> </label> <label class="flex-item"> <input type="radio" value="email auto" name="email"> <span></span> </label> <label class="flex-item"> <input type="radio" value="email fuzzy" name="email"> <span></span> </label> <label class="flex-item"> <input type="radio" value="email mlt" name="email"> <span></span> </label> <label class="flex-item"> <div class="slider boost"> <div class="range-slider"> <input class="range-slider__range" type="range" value="1" min="1" max="4"> <span class="range-slider__value">1</span> </div></div></label> </div>'
   
   ///////////////////////////// ELASTIC QUERY CONSTRUCTION ///////////////////////////////////
-  function constructFuzzyQuery(queryText, matchOnField){
+  function constructFuzzyQuery(matchOnField, queryText){
     var fuzzy = {};
-    fuzzy.match = {};
-    fuzzy.match[matchOnField] = {};
-    fuzzy.match[matchOnField].query = queryText;
-    fuzzy.match[matchOnField].boost = 1;
-    fuzzy.match[matchOnField].fuzziness = "AUTO";
-    fuzzy.match[matchOnField].operator = "OR";
-    fuzzy.match[matchOnField].prefix_length = 0;
-    fuzzy.match[matchOnField].max_expansions = 50;
-    fuzzy.match[matchOnField].fuzzy_transpositions = true;
-    fuzzy.match[matchOnField].lenient = true;
-    fuzzy.match[matchOnField].zero_terms_query = "ALL";
-
+    var fuzzyparams = {"query": queryText, "boost": 1, "fuzziness": "AUTO", "operator":"OR", "prefix_length": 0, "max_expansions": 50, "fuzzy_transpositions":true, "lenient":true, "zero_terms_query":"ALL"}
+    fuzzy.match ={[matchOnField]: fuzzyparams}
+    
     return fuzzy;
   }
   
-   function constructExactQuery(queryText, matchOnField){
-    var exact = {};
-    exact.match = {};
-    exact.match[matchOnField] = {};
-    exact.match[matchOnField].query = queryText;
-    exact.match[matchOnField].boost = 1;
-
+   function constructExactQuery(matchOnField, queryText){
+    var exact = {}
+    exact.term = {[matchOnField]: queryText}
+    console.log(exact)
+   
     return exact;
   }
   
-  function constructMoreLikeThisQuery(fieldsToCompare, queryContent){
+  function constructMoreLikeThisQuery(matchOnField, queryText){
     var moreLikeThis = {};
     // moreLikeThis.size = 5;
     // moreLikeThis.query = {};
@@ -84,9 +73,9 @@
     moreLikeThis.more_like_this.min_doc_freq = 1;
     moreLikeThis.more_like_this.fields = [];
 
-    moreLikeThis.more_like_this.fields.push(fieldsToCompare);
+    moreLikeThis.more_like_this.fields.push(matchOnField);
     
-    moreLikeThis.more_like_this.like = queryContent;
+    moreLikeThis.more_like_this.like = queryText;
 
     return moreLikeThis;
   }
@@ -126,15 +115,58 @@
     return rangeQuery;
   }
   
+  function getIndicesLinkedToAllSelectedEIDs(indicesAndTheirEIDs, selectedEIDs){
+    var searches = [];
+    Object.keys(indicesAndTheirEIDs).forEach(function(index){
+      // for each index loop through selected eids and see if connected
+      console.log(index)
+      var connectionCount = 0;
+      for (eid in selectedEIDs){
+        console.log(eid)
+        console.log(indicesAndTheirEIDs[index].includes(eid))
+        if (indicesAndTheirEIDs[index].includes(eid)>=0){
+          connectionCount++;
+        }
+      }
+      if(connectionCount == indicesAndTheirEIDs[index].length){
+        searches.push(index)
+      }
+    });
+    return searches;
+  }
+  
+  function getIndexFieldAndQuery(index, eidLinks, node){
+    var indexFieldQuerytext = {};
+    indexFieldQuerytext["index"] = index;
+    console.log(eidLinks)
+    for (indices in eidLinks){
+      if (index == eidLinks[indices].indexPattern){ // this gets field to search
+        indexFieldQuerytext["fieldToSearch"] = eidLinks[indices].field;
+      }
+      if(eidLinks[indices].indexPattern == node.indexPattern){ // get the field in origin node index pattern that contains query
+        indexFieldQuerytext["queryText"] = node.payload[eidLinks[indices].field];
+      }
+    }
+    if (indexFieldQuerytext["index"] && indexFieldQuerytext["fieldToSearch"] && indexFieldQuerytext["queryText"]) return indexFieldQuerytext;
+  }
+  
   function findCommonIndicesToSearch(selectedNodes, graphModel, eids, timeGeoQuery, limitResults){
     var eidRelationSets = {};
+    var indexToEidRelations = {};
     var indexSet = new Set();
      return f.getKibiRelations()
       .then(function (relations) {
         for (relation in relations){
           if (relations[relation].domain.id.substr(0,4) === "eid:"){ // This finds the indices eids are connected to (<-), and the fields in them that we will search
+            //first we add index pattern to eid data structure, then we add ieds to index pattern structure. index pattern structure is to determine if index pattern is connected to all eids
             var eidName = relations[relation].domain.label;
-            if (!eidRelationSets[eidName]) {eidRelationSets[eidName] = [];}
+            if (!eidRelationSets[eidName]) {
+              eidRelationSets[eidName] = [];
+            }
+            if (!indexToEidRelations[relations[relation].range.indexPattern]) {
+              indexToEidRelations[relations[relation].range.indexPattern] = [];
+            }
+            indexToEidRelations[relations[relation].range.indexPattern].push(eidName)
             var indexPatternAndField = {};
             indexPatternAndField["indexPattern"] = relations[relation].range.indexPattern;
             indexPatternAndField["field"] = relations[relation].rangeField;
@@ -142,237 +174,102 @@
             indexSet.add(relations[relation].range.indexPattern);
           }
         }
+        var nodeIndexQueries = [];
         
-        console.log(selectedNodes)
-        console.log(eidRelationSets)
-        console.log(eids)
-        
-        /************* We Loop through Selected Nodes. For each we loop through selected eids. If the eid is not ignored
-         *              we create the query section corresponding to the action (mlt/fuzzy/exact) WITH time and geo constraints ***/
-         var perNodeQueries = [];
-         
         for (n in selectedNodes){
+          console.log(selectedNodes[n])
           // create a query for each node
-          var nodeQuery = {};
-          nodeQuery.query = {};
-          nodeQuery.query.bool = {}
-          nodeQuery.query.bool.must = [];
+         
           
-          var indexSearches = {};
-          indexSearches.bool = {};
-          indexSearches.bool.should = [];
+          var INDICES_TO_SEARCH = getIndicesLinkedToAllSelectedEIDs(indexToEidRelations, eids)
           
-          indexSet.forEach(function(ind){
-            var indexCheck = {};
-            indexCheck.term = {};
-            indexCheck.term["_index"] =ind.substr(ind.indexOf(":")+1);
-            indexSearches.bool.should.push(indexCheck);
-          })
-          nodeQuery.query.bool.must.push(indexSearches)
-          
-          // We have now added the indexes to search in an OR format
-          // Now we add the search criterai. EIDs, time, geo
-          
-          var contentQuery = {};
-          contentQuery.bool = {};
-          contentQuery.bool.must = [];
-
-          //now we add to the bool 'should' elements to the query. We loop through 'eids' first. If eid.action != ignore, then we add connected field to query
-          for (eid in eids){
-            if (eids[eid].action !== "ignore"){
-              var eidCheck = {};
-              eidCheck.bool = {};
-              eidCheck.bool.should = [];
+          for (index in INDICES_TO_SEARCH){
+            var nodeQuery = {};
+            nodeQuery.query = {};
+            nodeQuery.query.bool = {}
+            nodeQuery.query.bool.must = [];
+            
+            var similarityQuery = {};
+            similarityQuery.bool = {}
+            similarityQuery.bool.should = [];
+            // loop through user search type selection
+            console.log(eids)
+            for (eid in eids){
+              var indexFieldQueryText = getIndexFieldAndQuery(INDICES_TO_SEARCH[index], eidRelationSets[eid], selectedNodes[n])
+              console.log(indexFieldQueryText)
               if (eids[eid].action == "exact"){
-                // we loop through all fields this eid connects to and build an OR statement
-                var eidOriginElement = eidRelationSets[eid];
-                for (eidOrigin in eidOriginElement){
-                  var eidFieldQuery = {};
-                  eidFieldQuery.term = {};
-                  eidFieldQuery.term[eidOriginElement[eidOrigin].field] = selectedNodes[n].payload[eidOriginElement[eidOrigin].field];
-                  eidCheck.bool.should.push(eidFieldQuery);
-                }
-                contentQuery.bool.must.push(eidCheck);
-              } 
+                if (indexFieldQueryText){
+                  similarityQuery.bool.should.push(constructExactQuery(indexFieldQueryText.fieldToSearch, indexFieldQueryText.queryText))
+                }                
+              }
               else if (eids[eid].action == "fuzzy"){
-                 // we loop through all fields this eid connects to and build an OR statement
-                var eidOriginElement = eidRelationSets[eid];
-                for (eidOrigin in eidOriginElement){
-                  var eidFieldQuery = constructFuzzyQuery(selectedNodes[n].payload[eidOriginElement[eidOrigin].field], eidOriginElement[eidOrigin].field);
-                  eidCheck.bool.should.push(eidFieldQuery);
-                }
-                contentQuery.bool.must.push(eidCheck);
+                if (indexFieldQueryText){
+                  similarityQuery.bool.should.push(constructFuzzyQuery(indexFieldQueryText.fieldToSearch, indexFieldQueryText.queryText))
+                } 
               }
               else if (eids[eid].action == "mlt"){
-                 // we loop through all fields this eid connects to and build an OR statement
-                var eidOriginElement = eidRelationSets[eid];
-                for (eidOrigin in eidOriginElement){
-                  var eidFieldQuery = constructMoreLikeThisQuery(eidOriginElement[eidOrigin].field, selectedNodes[n].payload[eidOriginElement[eidOrigin].field]);
-                  eidCheck.bool.should.push(eidFieldQuery);
-                }
-                contentQuery.bool.must.push(eidCheck);
+                if (indexFieldQueryText){
+                  similarityQuery.bool.should.push(constructMoreLikeThisQuery(indexFieldQueryText.fieldToSearch, indexFieldQueryText.queryText))
+                } 
               }
-              
             }
-          }
-          if ((datelist.length > 0) && (timeGeoQuery["time"])){
-            // We will see if any selected nodes have a date field, and if user has decided within a range of dates
-             for(date in datelist){
-      
-      
+            if (similarityQuery.bool.should.length > 0){
+            nodeQuery.query.bool.must.push(similarityQuery); // added similarity query if exists
+            }
+            if ((datelist.length > 0) && (timeGeoQuery["time"])){
+              // We will see if any selected nodes have a date field, and if user has decided within a range of dates
+              for(date in datelist){
                 // Here we should convert Date to ms, and user range input to ms
-                if (datelist[date].field){
-                var baseDate = convertFromISOtoMS(datelist[date].date);
-                var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
-                var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
-                var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
-      
-                contentQuery.bool.must.push(constructTimeRangeQuery(datelist[date].field, lte, gte));
-                }
-              }
-            }
-      if ((geolist.length > 0) && (timeGeoQuery["geo"])){
-        console.log(geolist)
-      // We will see if any selected nodes have a date field, and if user has decided within a range of dates
-       for(geo in geolist){
-         
-          // Here we should create range
-          if (geolist[geo].field){
-          var range = timeGeoQuery["geo"].geoAmount + timeGeoQuery["geo"].geoUnit;   
-
-          contentQuery.bool.must.push(constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field));
-          }
-        }
-      }
-            nodeQuery.query.bool.must.push(contentQuery)
-            console.log(JSON.stringify(nodeQuery))
-        }
-        
-        
-        var queries = [];
-        var fieldList = [];
-        // Top Level of Query
-        Object.keys(eids).forEach(function(eid){ // For each EID, if 'action' is mlt/fuzzy/exact we first construct the query by finding common connecting source index patterns, then adding content of that connecting 'field' to the query string
-          var queryTerm = "";
+                if (datelist[date].nodeID == selectedNodes[n].id){
+                  if (datelist[date].field){
+                    var baseDate = convertFromISOtoMS(datelist[date].date);
+                    var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
+                    var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
+                    var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
           
-          if (eids[eid].action === "mlt" || eids[eid].action === "exact" || eids[eid].action ==="fuzzy"){ // search type mlt, so we construct the query term
-          var eidIndices = eidRelationSets[eid]; // select one eid, list of connecting index patterns
-            for(var indexPattern in eidIndices){
-              var index = eidIndices[indexPattern].indexPattern;
-              var field = eidIndices[indexPattern];
-              //Constructing list of indexes to search, and an associated list of fields
-              if (!fieldList[index]){ fieldList[index] = [];}
-              if (fieldList[index].indexOf(field.field) < 0) {fieldList[index].push(field.field)}
-              // now we have connecting index and field, we see if selected nodes are of this type
-              for (var node in selectedNodes){
-                var ip = selectedNodes[node];
-                if (ip.indexPattern === index){ // we matched the connecting index to a selected node, now we concat the query term
-                  if(ip.payload[field.field]){
-                    queryTerm += ip.payload[field.field] + " ";  
+                    nodeQuery.query.bool.must.push(constructTimeRangeQuery(datelist[date].field, lte, gte));
                   }
-                  
                 }
               }
-              queryTerm = queryTerm.trim();
+            }
+            if ((geolist.length > 0) && (timeGeoQuery["geo"])){
+              console.log(geolist)
+              // We will see if any selected nodes have a date field, and if user has decided within a range of dates
               
+                for(geo in geolist){
+                  // Here we should create range
+                  if (geolist[geo].nodeID == selectedNodes[n].id){
+                    if (geolist[geo].field){
+                      var range = timeGeoQuery["geo"].geoAmount + timeGeoQuery["geo"].geoUnit;   
+                      nodeQuery.query.bool.must.push(constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field));
+                    }
+                }
+              }
             }
-            var query = {};
-            query["queryTerm"] = queryTerm;
-            query["type"] = eids[eid].action;
-            // query["fields"] = fieldList;
-            queries.push(query);
-            //CONSTRUCT query indent 1 (corresponds to selected EID and action)
+            var indexAndQuery = {};
+            indexAndQuery["index"] = INDICES_TO_SEARCH[index].substr(INDICES_TO_SEARCH[index].indexOf(":")+1);;
+            indexAndQuery["query"] = nodeQuery;
+            indexAndQuery["originNode"] = selectedNodes[n].id;
+            indexAndQuery["queryType"] = "eid";
+            nodeIndexQueries.push(indexAndQuery)
+            console.log("Query for n")
+            console.log(JSON.stringify(nodeQuery))
           }
+          console.log(nodeIndexQueries)
           
-      });
-      // TODO: Now that we have queries, we filter eid Relation Sets so that only index Patterns that are common to each EID will be searched
-      // As an aside, we can test each index pattern to see if it will also be a target index to be searched
-      // var targetIndex = filterTargetIndicesToBeSearched(eidRelationSets, eidIndices, indexPattern)
-      var esQueries = [];
-      var query = {};
-      query.query = {};
-      query.query.bool = {}
-      query.query.bool.should = [];
+        }
+        
      
-      if ((datelist.length > 0) && (timeGeoQuery["time"])){
-      // We will see if any selected nodes have a date field, and if user has decided within a range of dates
-       for(date in datelist){
-          var datequery = {};
-          datequery.query = {};
-          // datequery.query.bool = {}
-          // datequery.query.bool.should = [];
-
-          // Here we should convert Date to ms, and user range input to ms
-          var baseDate = convertFromISOtoMS(datelist[date].date);
-          var rangeDate = convertUnitsToMS(timeGeoQuery["time"].timeAmount, timeGeoQuery["time"].timeUnit)
-          var gte = convertFromMS(baseDate - (rangeDate/2)); // Calculate gte (greater than or equal to) param of query
-          var lte = convertFromMS(baseDate + (rangeDate/2)); // Calculate lte (less than or equal to) param of query
-
-          datequery.query = constructTimeRangeQuery(datelist[date].field, lte, gte);
-          var esDateQuery = {};
-          esDateQuery.index = datelist[date].indexPattern.substr(datelist[date].indexPattern.indexOf(":")+1);
-          esDateQuery.query =datequery;
-          esDateQuery.queryType = "time";
-          esDateQuery.originNode = datelist[date].nodeID;
-          esQueries.push(esDateQuery)
-        }
-      }
-      if ((geolist.length > 0) && (timeGeoQuery["geo"])){
-      // We will see if any selected nodes have a date field, and if user has decided within a range of dates
-       for(geo in geolist){
-          var geoquery = {};
-          geoquery.query = {};
-          // datequery.query.bool = {}
-          // datequery.query.bool.should = [];
-
-          // Here we should create range
-          var range = timeGeoQuery["geo"].geoAmount + timeGeoQuery["geo"].geoUnit;   
-
-          geoquery.query = constructGeoProximityQuery(geolist[geo].location, range, geolist[geo].field);
-          if (geoquery.query){
-            var esGeoQuery = {};
-            esGeoQuery.index = geolist[geo].indexPattern.substr(geolist[geo].indexPattern.indexOf(":")+1);
-            esGeoQuery.query = geoquery;
-            esGeoQuery.queryType = "geo";
-            esGeoQuery.originNode = geolist[geo].nodeID;
-            esQueries.push(esGeoQuery)
-          }  
-        }
-      }
-     
-      for (var quer in fieldList){
-        // we iterate through index pattern list. If number of fields matches number of level 1 query types, then we continue, as this proves common connectivity
-        if (fieldList[quer].length === queries.length){
-          // this is good to search, construct query. Loop through query terms
-          for (var queryBlock in queries){
-            if (queries[queryBlock].type === "mlt"){
-              query.query.bool.should.push(constructMoreLikeThisQuery(fieldList[quer][queryBlock], queries[queryBlock].queryTerm));
-            }
-            else if (queries[queryBlock].type === "fuzzy"){
-              query.query.bool.should.push(constructFuzzyQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
-            }
-            else if (queries[queryBlock].type === "exact"){
-              query.query.bool.should.push(constructExactQuery(queries[queryBlock].queryTerm, fieldList[quer][queryBlock]));
-            }
-          }
-          var esQuery = {};
-          esQuery.index = quer.substr(quer.indexOf(":")+1);
-          esQuery.query = query;
-          esQuery.originNode = selectedNodes[0].id
-          esQuery.queryType = "eid";
-          esQueries.push(esQuery)
-        }
-      }
-      console.log(esQueries)
-      return Promise.resolve(esQueries)
+        return Promise.resolve(nodeIndexQueries)
       });
-      
   }
+  
   function convertFromISOtoMS(date){
       var date = new Date(date); 
       var milliseconds = date.getTime() / 1000; 
       return milliseconds
   }
+  
   function convertUnitsToMS(amount, units){
     var ms = 0;
     if (units == "years"){
@@ -392,6 +289,7 @@
     }
     return ms;
   }
+  
   function convertFromMS(ms){
     var date = new Date(ms * 1000).toISOString().substring(0,10);
     return date
@@ -424,14 +322,11 @@
       }
     }
   }
-  
 
   function beforeAll(graphId, graphModel, graphSelection) {
     return f.getInvestigateEntities()
     .then(function (entities) {
-      console.log(entities)
       extractMetaData(entities);
-      console.log(metaData)
       entities = entities.filter(function(entry){
           return entry.type === "VIRTUAL_ENTITY" && entry.label != ".siren" && !entry.label.includes("-virtual");
       })
@@ -581,7 +476,6 @@
       geoObject["geoUnit"] = $("#geoUnit").val()  
       timeAndGeo["geo"] = geoObject;
     }
-    console.log(timeAndGeo)
     return timeAndGeo;
   }
 
@@ -591,7 +485,7 @@
       var eidSelection = {}
       eidSelection["boost"] = $('#'+commonEIDs[i]+"Boost").val()
       eidSelection["action"] = $("input[name='"+commonEIDs[i]+"']:checked").val()
-      eids[commonEIDs[i]] = eidSelection
+      if (eidSelection["action"] != "ignore"){ eids[commonEIDs[i]] = eidSelection}
     }
     return eids;
   }
@@ -635,46 +529,45 @@
     var objectToExamine = selectedNode.payload;
     var geoMeta = metadata[selectedNode.indexPattern];
     var geoField;
+    
     if (geoMeta && geoMeta["geoField"]){
       geoField = geoMeta["geoField"]
     }
-    console.log(geoField)
     // Check metadata for geoField. If exists, create new object with properties"type", "label", and "geo_point"
-        if (geoField){
-          // console.log(selectedNode.payload["location"])
-           var geoObject = {};
-          geoObject["location"] = selectedNode.payload[geoField];
-          geoObject["type"] = selectedNode.type;
-          geoObject["label"] = selectedNode.label;
-          geoObject["field"] = geoField;
-          geoObject["indexPattern"] = selectedNode.indexPattern;
-          geoObject["nodeID"] = selectedNode.id;
-          
-          return geoObject;
-        }
+    if (geoField){
+      // console.log(selectedNode.payload["location"])
+       var geoObject = {};
+      geoObject["location"] = selectedNode.payload[geoField];
+      geoObject["type"] = selectedNode.type;
+      geoObject["label"] = selectedNode.label;
+      geoObject["field"] = geoField;
+      geoObject["indexPattern"] = selectedNode.indexPattern;
+      geoObject["nodeID"] = selectedNode.id;
+      
+      return geoObject;
+    }
   }
   
   function findDatesInNodeRecord(selectedNode, metadata){
     var objectToExamine = selectedNode.payload;
     var timeField; 
-    console.log(selectedNode)
+    
     var timeMeta = metadata[selectedNode.indexPattern];
     if (timeMeta && timeMeta["timeField"]){
       timeField = timeMeta["timeField"];
     }
-    console.log(timeField)
     // Check metadata for timefield. If exists, create new object with properties"type", "label", and "date"
-      if (timeField){
-        var timeObject = {};
-        timeObject["type"] = selectedNode.type;
-        timeObject["label"] = selectedNode.label;
-        timeObject["date"] = objectToExamine[timeField];
-        timeObject["indexPattern"] = selectedNode.indexPattern;
-        timeObject["field"] = timeField;
-        timeObject["nodeID"] = selectedNode.id;
+    if (timeField){
+      var timeObject = {};
+      timeObject["type"] = selectedNode.type;
+      timeObject["label"] = selectedNode.label;
+      timeObject["date"] = objectToExamine[timeField];
+      timeObject["indexPattern"] = selectedNode.indexPattern;
+      timeObject["field"] = timeField;
+      timeObject["nodeID"] = selectedNode.id;
 
-        return timeObject;
-      }
+      return timeObject;
+    }
   }
 
   function onModalOk(scope, graphModel) {
@@ -689,10 +582,10 @@
     return selectedRel;
   }
 
-function checkObject(relation, manual) {
-  return (relation.in == manual.inV) && (relation.out == manual.outV) ; 
-  return (relation.label == manual.label) && (relation.in == manual.inV) && (relation.out == manual.outV) ; // as label not owrking we won't test for that now
-}
+  function checkObject(relation, manual) {
+    return (relation.in == manual.inV) && (relation.out == manual.outV) ; 
+    return (relation.label == manual.label) && (relation.in == manual.inV) && (relation.out == manual.outV) ; // as label not owrking we won't test for that now
+  }
  
   function createEdges(nodes, newNodes, queryTypes, originNodes, graphModel){
     var edges = [];
@@ -742,10 +635,9 @@ function checkObject(relation, manual) {
       }
     }
     else{ // This Else contaisn the old way of building edges. Most likely will delete from code
-    newNodes.forEach(function(virt){
+      newNodes.forEach(function(virt){
         nodes.forEach(function(node){
           var weight = returnPosition(node.id, orderedResults["eid"])
-                    console.log ("EID weight is " + weight)
 
           var color;
           var label = queryTypes[virt]; // this is a data struct that maps each created node id to the type of query that generated it (types are time, geo, and eid)
@@ -765,11 +657,11 @@ function checkObject(relation, manual) {
       
             edges.push(manual)
         })
-    })
+      })
     }
 
     return edges;
-  }
+    }
 
   function returnPosition(id, orderedResult){
     // console.log(id)
@@ -818,7 +710,7 @@ function checkObject(relation, manual) {
   }
 
 
-var orderedResults = {};
+  var orderedResults = {};
   
  function afterModalClosed(graphId, graphModel, graphSelection, onOkModalResult) {
     
@@ -847,10 +739,10 @@ var orderedResults = {};
       
     return Promise.all(queryPromises)
     .then(function(results){
-      console.log(results)
 
       var arrayofIDs = [];
       var resultType = results.type;
+      console.log(results)
     
       // /**************************
       // * Create id from each node in result to send on to Gremlin query and get nodes to be placed on graph
@@ -865,7 +757,7 @@ var orderedResults = {};
           originNodes[id] = result.originNodeID;
 
           arrayofIDs.push(id)
-      })
+        })
       })
       // console.log(orderedResults["eid"])
       if (orderedResults["time"]) orderedResults["time"].sort((a, b) => (a._score > b._score) ? 1 : -1)
